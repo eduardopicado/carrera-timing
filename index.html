@@ -1,0 +1,800 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pit Wall">
+<meta name="theme-color" content="#141619">
+<title>Pit Wall</title>
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: a timing-tower column — mode switch, one board per lane, a live
+   input meter, settings, and a start/stop bar pinned to the bottom. Dark only:
+   it is a screen read at arm's length beside a track. */
+:root {
+  --asphalt: #141619;
+  --panel: #1d2024;
+  --panel-2: #262a2f;
+  --line: #343940;
+  --text: #eef0f2;
+  --muted: #8e97a1;
+  --kerb: #e8392f;
+  --lane1: #ff5b4f;
+  --lane2: #3ea6ff;
+  --t-best: #b45cff;   /* fastest lap of the session */
+  --t-pb: #2fd16c;     /* lane's own best */
+  --t-slow: #ffd23f;   /* slower than the lap before */
+  --display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", system-ui, sans-serif;
+  --body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; background: var(--asphalt); color: var(--text); }
+body {
+  font: 400 15px/1.45 var(--body);
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  -webkit-text-size-adjust: 100%;
+}
+button, select, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.wrap {
+  max-width: 980px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 16px;
+}
+
+/* Header */
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-block: 14px 4px; }
+.brand { display: flex; align-items: center; gap: 10px; font: 700 26px/1 var(--display); letter-spacing: .02em; text-transform: uppercase; }
+.flag { width: 26px; height: 18px; border-radius: 2px;
+  background: conic-gradient(var(--text) 25%, var(--asphalt) 0 50%, var(--text) 0 75%, var(--asphalt) 0) 0 0 / 8.66px 9px;
+  box-shadow: 0 0 0 1px var(--line); }
+.modes { display: inline-flex; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
+.modes button { border: 0; background: none; padding: 7px 14px; border-radius: 999px; color: var(--muted); font: 600 15px/1 var(--display); letter-spacing: .06em; text-transform: uppercase; }
+.modes button[aria-selected="true"] { background: var(--text); color: var(--asphalt); }
+
+/* Status line */
+.status { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; min-height: 22px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line); flex: none; }
+.status.live .dot { background: var(--kerb); animation: pulse 1.2s infinite; }
+.status.error { color: var(--t-slow); }
+@keyframes pulse { 50% { opacity: .35; } }
+
+/* Lane boards */
+.board { display: grid; gap: 16px; grid-template-columns: 1fr; }
+.board.two { grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); }
+.lane { background: var(--panel); border-radius: 14px; overflow: hidden; display: grid; min-width: 0; transition: box-shadow .25s; }
+.lane-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 16px; background: var(--panel-2); border-top: 4px solid var(--lane-color, var(--lane1)); }
+.lane-name { font: 700 18px/1 var(--display); text-transform: uppercase; letter-spacing: .08em; }
+.lap-count { font: 600 18px/1 var(--display); letter-spacing: .04em; color: var(--muted); font-variant-numeric: tabular-nums; }
+.lap-count b { color: var(--text); font-weight: 700; }
+.lane-body { padding: 14px 16px 16px; display: grid; gap: 14px; }
+.running { font: 600 clamp(64px, 19vw, 112px)/.9 var(--display); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.running small { font-size: .38em; color: var(--muted); letter-spacing: .02em; margin-left: 4px; }
+.running.idle { color: var(--muted); }
+.lane.flash { box-shadow: 0 0 0 3px var(--lane-color, var(--lane1)); }
+.finish { font: 700 17px/1.2 var(--display); text-transform: uppercase; letter-spacing: .06em; color: var(--asphalt); background: var(--text); border-radius: 6px; padding: 6px 10px; justify-self: start; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border-radius: 10px; overflow: hidden; }
+.stat { background: var(--panel); padding: 8px 10px; display: grid; gap: 2px; }
+.stat span { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); }
+.stat b { font: 600 26px/1 var(--display); font-variant-numeric: tabular-nums; }
+.c-best { color: var(--t-best); } .c-pb { color: var(--t-pb); } .c-slow { color: var(--t-slow); }
+.laps { list-style: none; margin: 0; padding: 0; display: grid; max-height: 260px; overflow-y: auto; border-top: 1px solid var(--line); }
+.laps li { display: grid; grid-template-columns: 3.2em 1fr auto; gap: 10px; align-items: baseline; padding: 6px 2px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.laps .n { color: var(--muted); font-size: 13px; }
+.laps .t { font: 600 21px/1 var(--display); }
+.laps .d { font-size: 13px; color: var(--muted); }
+.laps .empty { display: block; color: var(--muted); border: 0; padding-top: 10px; }
+.chip { font: 600 11px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; padding: 3px 6px; border-radius: 4px; margin-left: 6px; vertical-align: 3px; }
+.chip.best { background: var(--t-best); color: #fff; }
+.chip.pb { background: var(--t-pb); color: var(--asphalt); }
+
+/* Camera */
+.cam { display: grid; gap: 10px; }
+.cam-frame { position: relative; background: #000; border-radius: 12px; overflow: hidden; touch-action: none; max-width: 100%; }
+.cam-frame video { display: block; width: 100%; height: auto; }
+.cam-frame canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.cam-empty { aspect-ratio: 4 / 3; display: grid; place-items: center; text-align: center; padding: 20px; color: var(--muted); }
+.cam-tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.hint { color: var(--muted); font-size: 14px; margin: 0; }
+
+/* Meter */
+.meter { background: var(--panel); border-radius: 12px; padding: 12px 16px; display: grid; gap: 8px; }
+.meter-row { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--muted); }
+.meter-row b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.bar { position: relative; height: 14px; border-radius: 7px; background: var(--panel-2); overflow: hidden; }
+.bar i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--muted); border-radius: 7px; transition: width 60ms linear; }
+.bar i.hot { background: var(--kerb); }
+.bar em { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--text); }
+
+/* Buttons */
+.btn { border: 1px solid var(--line); background: var(--panel-2); border-radius: 10px; padding: 9px 14px; font: 600 15px/1 var(--body); }
+.btn[aria-pressed="true"] { background: var(--text); color: var(--asphalt); border-color: var(--text); }
+.btn:disabled { opacity: .45; cursor: default; }
+.controls {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+  background: color-mix(in srgb, var(--asphalt) 88%, transparent);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border-top: 1px solid var(--line);
+  padding: 12px max(16px, env(safe-area-inset-right, 0px)) calc(12px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+}
+.controls .in { max-width: 980px; margin: 0 auto; display: flex; gap: 10px; }
+.go { flex: 1; border: 0; border-radius: 12px; padding: 16px; font: 700 22px/1 var(--display); letter-spacing: .1em; text-transform: uppercase; background: var(--t-pb); color: var(--asphalt); }
+.go.stop { background: var(--kerb); color: #fff; }
+.controls .btn { border-radius: 12px; padding-inline: 18px; }
+
+/* Settings + tools */
+details { background: var(--panel); border-radius: 12px; }
+summary { padding: 13px 16px; font: 600 16px/1 var(--display); letter-spacing: .08em; text-transform: uppercase; cursor: pointer; list-style: none; display: flex; justify-content: space-between; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: "+"; color: var(--muted); }
+details[open] summary::after { content: "−"; }
+.settings-body { padding: 0 16px 16px; display: grid; gap: 16px; }
+.field { display: grid; gap: 6px; }
+.field label, .field .label { font-weight: 600; display: flex; justify-content: space-between; gap: 10px; }
+.field output { font-variant-numeric: tabular-nums; color: var(--muted); font-weight: 500; }
+.field p { margin: 0; color: var(--muted); font-size: 13px; }
+input[type="range"] { width: 100%; accent-color: var(--text); }
+select { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.check { display: flex; gap: 10px; align-items: flex-start; font-weight: 500; }
+.check input { width: 20px; height: 20px; accent-color: var(--t-pb); margin: 1px 0 0; flex: none; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.file-btn { position: relative; overflow: hidden; display: inline-flex; }
+.file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.foot { color: var(--muted); font-size: 13px; padding-block: 6px 12px; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><span class="flag" aria-hidden="true"></span>Pit Wall</div>
+    <div class="modes" role="tablist" aria-label="Timing mode">
+      <button id="mode-mic" role="tab" data-mode="mic" aria-selected="true">Mic · 1 car</button>
+      <button id="mode-cam" role="tab" data-mode="cam" aria-selected="false">Camera · 2 cars</button>
+    </div>
+  </header>
+
+  <div class="status" id="status" role="status"><span class="dot"></span><span id="status-text">Put the phone beside the lap counter, then press Start.</span></div>
+
+  <section class="cam" id="cam" hidden>
+    <div class="cam-frame" id="cam-frame">
+      <div class="cam-empty" id="cam-empty">Prop the phone above the start line, pointing down at both lanes, then turn on the camera.</div>
+      <video id="video" playsinline muted hidden></video>
+      <canvas id="overlay" hidden></canvas>
+    </div>
+    <div class="cam-tools">
+      <button class="btn" id="cam-on">Turn on camera</button>
+      <button class="btn" id="draw-1" aria-pressed="false" disabled>Draw lane 1 box</button>
+      <button class="btn" id="draw-2" aria-pressed="false" disabled>Draw lane 2 box</button>
+    </div>
+    <p class="hint" id="cam-hint">Drag a box across each lane just past the start line. Keep each box to its own lane.</p>
+  </section>
+
+  <section class="board" id="board" aria-live="polite"></section>
+
+  <section class="meter" id="meter">
+    <div class="meter-row"><span>Sound above background</span><span><b id="meter-val">–</b> · trigger at <b id="meter-thr">12 dB</b></span></div>
+    <div class="bar"><i id="meter-bar"></i><em id="meter-mark"></em></div>
+  </section>
+
+  <details id="settings">
+    <summary>Settings</summary>
+    <div class="settings-body">
+      <div class="field">
+        <span class="label">Race length</span>
+        <select id="race">
+          <option value="0">Practice (no limit)</option>
+          <option value="5">5 laps</option>
+          <option value="10">10 laps</option>
+          <option value="15">15 laps</option>
+          <option value="20">20 laps</option>
+          <option value="30">30 laps</option>
+        </select>
+      </div>
+      <div class="field" data-for="mic">
+        <label for="rise">Mic trigger <output id="rise-out">12 dB</output></label>
+        <input type="range" id="rise" min="6" max="20" step="1" value="12">
+        <p>How much louder than the background the car must get as it passes. Lower it if laps are missed; raise it if laps are counted that didn't happen.</p>
+      </div>
+      <div class="field" data-for="cam" hidden>
+        <label for="cam-thr">Camera trigger <output id="cam-thr-out">18</output></label>
+        <input type="range" id="cam-thr" min="6" max="60" step="1" value="18">
+        <p>How much the picture in a lane box must change to count as a car. The number on each box shows the live value.</p>
+      </div>
+      <div class="field">
+        <label for="minlap">Shortest possible lap <output id="minlap-out">1.2 s</output></label>
+        <input type="range" id="minlap" min="0.5" max="5" step="0.1" value="1.2">
+        <p>Anything quicker than this after a lap is ignored. Keep it below your fastest real lap.</p>
+      </div>
+      <label class="check"><input type="checkbox" id="speak"> <span>Call out each lap time<br><small class="hint">In mic mode the phone's own voice can be counted as a lap. Use with headphones or keep the volume low.</small></span></label>
+      <label class="check"><input type="checkbox" id="awake" checked> <span>Keep the screen on while timing</span></label>
+    </div>
+  </details>
+
+  <details id="tools">
+    <summary>Check a recording</summary>
+    <div class="settings-body">
+      <p class="hint">Run the mic detector over a recording to check the settings. Record with Voice Memos beside the track, then pick the file here.</p>
+      <div class="row">
+        <button class="btn" id="load-sample">Load the 13-lap sample</button>
+        <span class="btn file-btn">Choose a recording…<input type="file" id="file" accept="audio/*,.m4a,.wav,.mp3,.caf"></span>
+        <button class="btn" id="copy">Copy lap times</button>
+      </div>
+    </div>
+  </details>
+
+  <p class="foot">Mic mode times one car from the sound of it passing the phone. Camera mode times two cars from boxes drawn over each lane.</p>
+</div>
+
+<div class="controls">
+  <div class="in">
+    <button class="go" id="go">Start</button>
+    <button class="btn" id="reset">Reset</button>
+  </div>
+</div>
+
+<script src="detector.js"></script>
+<script src="lanes.js"></script>
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+
+/* ---------- settings ---------- */
+const DEFAULTS = { mode: 'mic', rise: 12, camThr: 18, minLap: 1.2, race: 0, speak: false, awake: true, boxes: [null, null] };
+const store = {
+  load() { try { return Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem('pitwall') || '{}')); } catch (e) { return Object.assign({}, DEFAULTS); } },
+  save() { try { localStorage.setItem('pitwall', JSON.stringify(cfg)); } catch (e) { /* private mode */ } },
+};
+const cfg = store.load();
+
+/* ---------- race state ---------- */
+const S = {
+  running: false,
+  source: null,            // 'mic' | 'cam' | 'file' while laps on the board came from there
+  lanes: [],
+};
+function newLane(i) { return { i, passes: [], laps: [], finishedAt: null }; }
+function resetLanes() { S.lanes = [newLane(0), newLane(1)]; }
+resetLanes();
+
+function laneCount() { return cfg.mode === 'cam' ? 2 : 1; }
+function laneName(i) { return cfg.mode === 'cam' ? 'Lane ' + (i + 1) : 'Car'; }
+
+function recompute(lane) {
+  lane.laps = lane.passes.slice(1).map((t, k) => t - lane.passes[k]);
+  if (cfg.race && lane.laps.length >= cfg.race) {
+    lane.laps = lane.laps.slice(0, cfg.race);
+    lane.passes = lane.passes.slice(0, cfg.race + 1);
+    if (lane.finishedAt == null) lane.finishedAt = lane.passes[cfg.race];
+  }
+}
+
+function onPass(i, t, amend) {
+  const lane = S.lanes[i];
+  if (!lane) return;
+  if (lane.finishedAt != null && !amend) return;
+  if (amend && lane.passes.length) lane.passes[lane.passes.length - 1] = t;
+  else lane.passes.push(t);
+  recompute(lane);
+  render();
+  flash(i);
+  const last = lane.laps[lane.laps.length - 1];
+  if (cfg.speak && last != null && !amend) say(lane, last);
+}
+
+/* ---------- formatting ---------- */
+const fmt = (s) => (s == null || !isFinite(s)) ? '–' : (s >= 60 ? Math.floor(s / 60) + ':' + (s % 60).toFixed(2).padStart(5, '0') : s.toFixed(2));
+const fmtRun = (s) => s >= 60 ? Math.floor(s / 60) + ':' + (s % 60).toFixed(1).padStart(4, '0') : s.toFixed(2);
+const sum = (a) => a.reduce((x, y) => x + y, 0);
+
+/* ---------- rendering ---------- */
+function bestOverall() {
+  let b = Infinity;
+  for (let i = 0; i < laneCount(); i++) for (const l of S.lanes[i].laps) b = Math.min(b, l);
+  return b;
+}
+
+function render() {
+  const board = $('board');
+  const n = laneCount();
+  board.className = 'board' + (n === 2 ? ' two' : '');
+  const overall = bestOverall();
+  const finishers = S.lanes.slice(0, n).filter((l) => l.finishedAt != null)
+    .sort((a, b) => (a.finishedAt - a.passes[0]) - (b.finishedAt - b.passes[0]));
+  let html = '';
+  for (let i = 0; i < n; i++) {
+    const lane = S.lanes[i];
+    const laps = lane.laps;
+    const best = laps.length ? Math.min(...laps) : null;
+    const last = laps.length ? laps[laps.length - 1] : null;
+    const prev = laps.length > 1 ? laps[laps.length - 2] : null;
+    const lastCls = last == null ? '' : last === overall ? 'c-best' : last === best ? 'c-pb' : (prev != null && last > prev ? 'c-slow' : '');
+    const count = cfg.race ? `<b>${Math.min(laps.length, cfg.race)}</b> / ${cfg.race}` : `<b>${laps.length}</b> ${laps.length === 1 ? 'lap' : 'laps'}`;
+    let status = '';
+    if (lane.finishedAt != null) {
+      const pos = finishers.indexOf(lane) + 1;
+      const total = lane.finishedAt - lane.passes[0];
+      status = `<div class="finish">${n === 2 ? (pos === 1 ? '1st · ' : '2nd · ') : 'Finished · '}${fmt(total)} s total</div>`;
+    }
+    let rows = '';
+    const bestIdx = laps.indexOf(best);
+    for (let k = laps.length - 1; k >= 0; k--) {
+      const l = laps[k];
+      const isBest = k === bestIdx, isOverall = isBest && best === overall;
+      const chip = isOverall ? '<span class="chip best">Best</span>' : (isBest && n === 2 ? '<span class="chip pb">PB</span>' : '');
+      const cls = isOverall ? 'c-best' : isBest ? 'c-pb' : '';
+      rows += `<li><span class="n">Lap ${k + 1}</span><span class="t ${cls}">${fmt(l)}${chip}</span><span class="d">${isBest ? '' : '+' + (l - best).toFixed(2)}</span></li>`;
+    }
+    if (!rows) rows = `<li class="empty">${lane.passes.length ? 'Lap 1 is running.' : (S.running ? 'Waiting for the car to cross the line.' : 'No laps yet.')}</li>`;
+    html += `<article class="lane" id="lane-${i}" style="--lane-color: var(--lane${i + 1})">
+      <div class="lane-head"><span class="lane-name">${laneName(i)}</span><span class="lap-count">${count}</span></div>
+      <div class="lane-body">
+        <div class="running idle" id="run-${i}">0.00</div>
+        ${status}
+        <div class="stats">
+          <div class="stat"><span>Last</span><b class="${lastCls}">${fmt(last)}</b></div>
+          <div class="stat"><span>Best</span><b class="${best != null && best === overall ? 'c-best' : 'c-pb'}">${fmt(best)}</b></div>
+          <div class="stat"><span>Average</span><b>${laps.length ? fmt(sum(laps) / laps.length) : '–'}</b></div>
+        </div>
+        <ul class="laps">${rows}</ul>
+      </div>
+    </article>`;
+  }
+  board.innerHTML = html;
+  tick();
+}
+
+function flash(i) {
+  const el = $('lane-' + i);
+  if (!el) return;
+  el.classList.add('flash');
+  setTimeout(() => el.classList.remove('flash'), 350);
+}
+
+// Running lap clocks.
+function now() {
+  if (S.source === 'mic' && audio.ctx) return audio.ctx.currentTime;
+  return performance.now() / 1000;
+}
+function tick() {
+  for (let i = 0; i < laneCount(); i++) {
+    const el = $('run-' + i);
+    if (!el) continue;
+    const lane = S.lanes[i];
+    const lastPass = lane.passes[lane.passes.length - 1];
+    let v = 0, live = false;
+    if (lane.finishedAt != null) v = lane.finishedAt - lane.passes[0];
+    else if (S.running && lastPass != null && S.source !== 'file') { v = Math.max(0, now() - lastPass); live = true; }
+    else if (lane.laps.length) v = lane.laps[lane.laps.length - 1];
+    el.innerHTML = fmtRun(v) + (lane.finishedAt != null ? '<small>total</small>' : '');
+    el.classList.toggle('idle', !live && lane.finishedAt == null);
+  }
+}
+(function loop() { if (S.running) tick(); requestAnimationFrame(loop); })();
+
+function setStatus(text, kind) {
+  $('status-text').textContent = text;
+  $('status').className = 'status' + (kind ? ' ' + kind : '');
+}
+
+/* ---------- voice ---------- */
+function say(lane, t) {
+  try {
+    const words = (cfg.mode === 'cam' ? 'Lane ' + (lane.i + 1) + ', ' : '') + t.toFixed(2);
+    const u = new SpeechSynthesisUtterance(words);
+    u.rate = 1.15;
+    speechSynthesis.cancel();
+    speechSynthesis.speak(u);
+  } catch (e) { /* no speech */ }
+}
+
+/* ---------- screen wake lock ---------- */
+let wakeLock = null;
+async function keepAwake(on) {
+  try {
+    if (on && cfg.awake && 'wakeLock' in navigator && !wakeLock) {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    } else if (!on && wakeLock) { await wakeLock.release(); wakeLock = null; }
+  } catch (e) { /* refused: fine */ }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && S.running) keepAwake(true); });
+
+/* ---------- mic ---------- */
+const audio = { ctx: null, stream: null, node: null, src: null, sink: null };
+
+function workletSource() {
+  return PassDetector.toString() + `
+class PassProcessor extends AudioWorkletProcessor {
+  constructor(o) {
+    super();
+    this.d = new PassDetector(sampleRate, o.processorOptions || {});
+    this.total = 0; this.sinceMeter = 0;
+    this.port.onmessage = (e) => {
+      if (e.data.opts) this.d.setOptions(e.data.opts);
+      if (e.data.reset) this.d.reset();
+    };
+  }
+  process(inputs) {
+    const ch = inputs[0] && inputs[0][0];
+    if (!ch) return true;
+    const found = this.d.process(ch);
+    this.total += ch.length;
+    const endTime = (currentFrame + ch.length) / sampleRate;
+    for (const p of found) {
+      // p.t counts from this detector's first sample; convert to context time.
+      this.port.postMessage({ type: 'pass', t: endTime - (this.total / sampleRate - p.t), amend: p.amend });
+    }
+    this.sinceMeter += ch.length;
+    if (this.sinceMeter >= sampleRate / 20) {
+      this.sinceMeter = 0;
+      this.port.postMessage(Object.assign({ type: 'meter' }, this.d.takeMeter()));
+    }
+    return true;
+  }
+}
+registerProcessor('pass-detector', PassProcessor);`;
+}
+
+function onAudioMessage(m) {
+  if (m.type === 'pass') { if (S.running && S.source === 'mic') onPass(0, m.t, m.amend); }
+  else if (m.type === 'meter' && audio.stream) showMeter(m);
+}
+
+async function startMic() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('This browser has no microphone access. Open the page in Safari over https.');
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!audio.ctx) audio.ctx = new Ctx();
+  await audio.ctx.resume();
+  if (!audio.stream) {
+    audio.stream = await navigator.mediaDevices.getUserMedia({ audio: {
+      echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } });
+  }
+  if (audio.node) { audio.node.port ? audio.node.port.postMessage({ reset: true }) : audio.detector.reset(); return; }
+  const ctx = audio.ctx;
+  audio.src = ctx.createMediaStreamSource(audio.stream);
+  audio.sink = ctx.createGain();
+  audio.sink.gain.value = 0;               // keeps the graph pulling; nothing is played
+  audio.sink.connect(ctx.destination);
+  const opts = { rise: cfg.rise, minLap: cfg.minLap };
+  try {
+    const url = URL.createObjectURL(new Blob([workletSource()], { type: 'application/javascript' }));
+    await ctx.audioWorklet.addModule(url);
+    audio.node = new AudioWorkletNode(ctx, 'pass-detector', { processorOptions: opts, numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1] });
+    audio.node.port.onmessage = (e) => onAudioMessage(e.data);
+  } catch (err) {
+    // Older Safari: run the same detector on the main thread.
+    const d = audio.detector = new PassDetector(ctx.sampleRate, opts);
+    let total = 0, sinceMeter = 0;
+    audio.node = ctx.createScriptProcessor(2048, 1, 1);
+    audio.node.onaudioprocess = (e) => {
+      const ch = e.inputBuffer.getChannelData(0);
+      const found = d.process(ch);
+      total += ch.length;
+      const endTime = e.playbackTime != null ? e.playbackTime : ctx.currentTime;
+      for (const p of found) onAudioMessage({ type: 'pass', t: endTime - (total / ctx.sampleRate - p.t), amend: p.amend });
+      if ((sinceMeter += ch.length) >= ctx.sampleRate / 20) { sinceMeter = 0; onAudioMessage(Object.assign({ type: 'meter' }, d.takeMeter())); }
+    };
+  }
+  audio.src.connect(audio.node);
+  audio.node.connect(audio.sink);
+}
+
+function stopMic() {
+  try { audio.src && audio.src.disconnect(); audio.node && audio.node.disconnect(); } catch (e) {}
+  if (audio.stream) audio.stream.getTracks().forEach((t) => t.stop());
+  audio.stream = audio.node = audio.src = audio.detector = null;
+  showMeter(null);
+}
+
+function pushMicOptions() {
+  const opts = { rise: cfg.rise, minLap: cfg.minLap };
+  if (audio.node && audio.node.port) audio.node.port.postMessage({ opts });
+  if (audio.detector) audio.detector.setOptions(opts);
+}
+
+const METER_MIN = -10, METER_MAX = 30;
+function meterPct(db) { return Math.max(0, Math.min(100, (db - METER_MIN) / (METER_MAX - METER_MIN) * 100)); }
+function showMeter(m) {
+  const bar = $('meter-bar');
+  $('meter-mark').style.left = meterPct(cfg.rise) + '%';
+  $('meter-thr').textContent = cfg.rise + ' dB';
+  if (!m || m.over < -100) { bar.style.width = '0'; $('meter-val').textContent = '–'; return; }
+  bar.style.width = meterPct(m.over) + '%';
+  bar.classList.toggle('hot', m.over >= cfg.rise);
+  $('meter-val').textContent = (m.over >= 0 ? '+' : '') + m.over.toFixed(0) + ' dB';
+}
+
+/* ---------- camera ---------- */
+const cam = { stream: null, work: null, wctx: null, watchers: [new LaneWatcher(), new LaneWatcher()], drawing: null, drag: null, scores: [0, 0], loop: false };
+
+async function startCamera() {
+  if (cam.stream) return;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('This browser has no camera access. Open the page in Safari over https.');
+  cam.stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: {
+    facingMode: { ideal: 'environment' }, frameRate: { ideal: 60 }, width: { ideal: 1280 }, height: { ideal: 720 } } });
+  const v = $('video');
+  v.srcObject = cam.stream;
+  v.hidden = false; $('overlay').hidden = false; $('cam-empty').hidden = true;
+  await v.play();
+  cam.work = document.createElement('canvas');
+  cam.wctx = cam.work.getContext('2d', { willReadFrequently: true });
+  $('cam-on').textContent = 'Camera on';
+  $('cam-on').disabled = true;
+  $('draw-1').disabled = $('draw-2').disabled = false;
+  cam.watchers.forEach((w) => w.reset());
+  applyCamOptions();
+  scheduleFrame();
+  const fps = cam.stream.getVideoTracks()[0].getSettings().frameRate;
+  if (fps) $('cam-hint').textContent = `Camera running at ${Math.round(fps)} frames a second, so laps are timed to about ${Math.round(1000 / fps)} ms. Drag a box across each lane just past the start line.`;
+}
+
+function stopCamera() {
+  if (!cam.stream) return;
+  cam.stream.getTracks().forEach((t) => t.stop());
+  cam.stream = null;
+  const v = $('video'); v.srcObject = null; v.hidden = true;
+  $('overlay').hidden = true; $('cam-empty').hidden = false;
+  $('cam-on').textContent = 'Turn on camera'; $('cam-on').disabled = false;
+  $('draw-1').disabled = $('draw-2').disabled = true;
+}
+
+function scheduleFrame() {
+  const v = $('video');
+  if (!cam.stream) return;
+  if (v.requestVideoFrameCallback) v.requestVideoFrameCallback((t) => { camFrame(t / 1000); scheduleFrame(); });
+  else requestAnimationFrame((t) => { camFrame(t / 1000); scheduleFrame(); });
+}
+
+function camFrame(t) {
+  const v = $('video');
+  if (!v.videoWidth) return;
+  const W = 320, H = Math.round(320 * v.videoHeight / v.videoWidth);
+  if (cam.work.width !== W || cam.work.height !== H) { cam.work.width = W; cam.work.height = H; }
+  cam.wctx.drawImage(v, 0, 0, W, H);
+  for (let i = 0; i < 2; i++) {
+    const b = cfg.boxes[i];
+    if (!b) { cam.scores[i] = 0; continue; }
+    const x = Math.round(b.x * W), y = Math.round(b.y * H);
+    const w = Math.max(2, Math.round(b.w * W)), h = Math.max(2, Math.round(b.h * H));
+    const px = cam.wctx.getImageData(x, y, w, h).data;
+    const rgb = new Float32Array(w * h * 3);
+    for (let k = 0, j = 0; k < rgb.length; k += 3, j += 4) { rgb[k] = px[j]; rgb[k + 1] = px[j + 1]; rgb[k + 2] = px[j + 2]; }
+    const lap = cam.watchers[i].process(rgb, t);
+    cam.scores[i] = cam.watchers[i].score;
+    if (lap && S.running && S.source === 'cam') onPass(i, t, false);
+  }
+  drawOverlay();
+}
+
+function drawOverlay() {
+  const c = $('overlay');
+  const r = c.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  if (c.width !== Math.round(r.width * dpr) || c.height !== Math.round(r.height * dpr)) { c.width = Math.round(r.width * dpr); c.height = Math.round(r.height * dpr); }
+  const g = c.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, r.width, r.height);
+  const css = getComputedStyle(document.documentElement);
+  const colors = [css.getPropertyValue('--lane1').trim(), css.getPropertyValue('--lane2').trim()];
+  for (let i = 0; i < 2; i++) {
+    const b = (cam.drag && cam.drag.lane === i) ? cam.drag.box : cfg.boxes[i];
+    if (!b) continue;
+    const x = b.x * r.width, y = b.y * r.height, w = b.w * r.width, h = b.h * r.height;
+    const hot = cam.scores[i] >= cfg.camThr;
+    g.lineWidth = hot ? 4 : 2;
+    g.strokeStyle = colors[i];
+    g.fillStyle = hot ? colors[i] + '55' : 'transparent';
+    g.fillRect(x, y, w, h);
+    g.strokeRect(x, y, w, h);
+    g.font = '600 14px Barlow, system-ui, sans-serif';
+    const label = `Lane ${i + 1} · ${Math.round(cam.scores[i])}`;
+    const tw = g.measureText(label).width + 10;
+    const ly = y > 22 ? y - 22 : y + h + 2;
+    g.fillStyle = colors[i]; g.fillRect(x, ly, tw, 20);
+    g.fillStyle = '#141619'; g.fillText(label, x + 5, ly + 15);
+  }
+}
+
+function setDrawing(lane) {
+  cam.drawing = cam.drawing === lane ? null : lane;
+  $('draw-1').setAttribute('aria-pressed', String(cam.drawing === 0));
+  $('draw-2').setAttribute('aria-pressed', String(cam.drawing === 1));
+  $('cam-hint').textContent = cam.drawing == null ? 'Boxes saved. Watch the number on each box jump when a car goes through.'
+    : `Drag on the picture to draw the lane ${cam.drawing + 1} box.`;
+}
+
+(function wireDrawing() {
+  const c = $('overlay');
+  const pos = (e) => { const r = c.getBoundingClientRect(); return { x: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), y: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)) }; };
+  c.addEventListener('pointerdown', (e) => {
+    if (cam.drawing == null) return;
+    c.setPointerCapture(e.pointerId);
+    const p = pos(e);
+    cam.drag = { lane: cam.drawing, x0: p.x, y0: p.y, box: { x: p.x, y: p.y, w: 0, h: 0 } };
+  });
+  c.addEventListener('pointermove', (e) => {
+    if (!cam.drag) return;
+    const p = pos(e), d = cam.drag;
+    d.box = { x: Math.min(d.x0, p.x), y: Math.min(d.y0, p.y), w: Math.abs(p.x - d.x0), h: Math.abs(p.y - d.y0) };
+    drawOverlay();
+  });
+  const end = () => {
+    if (!cam.drag) return;
+    const { lane, box } = cam.drag;
+    cam.drag = null;
+    if (box.w > 0.02 && box.h > 0.02) {
+      cfg.boxes[lane] = box; store.save();
+      cam.watchers[lane].reset();
+      setDrawing(lane);   // toggles drawing off
+    }
+    drawOverlay();
+  };
+  c.addEventListener('pointerup', end);
+  c.addEventListener('pointercancel', end);
+})();
+
+function applyCamOptions() {
+  cam.watchers.forEach((w) => w.setOptions({ threshold: cfg.camThr, minLap: cfg.minLap }));
+}
+
+/* ---------- start / stop ---------- */
+async function start() {
+  try {
+    if (S.source !== cfg.mode || S.lanes.some((l) => l.finishedAt != null)) clearLaps();
+    S.source = cfg.mode;
+    if (cfg.mode === 'mic') {
+      setStatus('Asking for the microphone…');
+      await startMic();
+      setStatus('Listening. The first time the car passes starts lap 1.', 'live');
+    } else {
+      await startCamera();
+      if (!cfg.boxes[0] && !cfg.boxes[1]) { setStatus('Draw a box over each lane first.', 'error'); return; }
+      cam.watchers.forEach((w) => w.resetLaps());
+      setStatus('Watching. Each car starts lap 1 when it first crosses its box.', 'live');
+    }
+    if (cfg.speak) { try { speechSynthesis.speak(new SpeechSynthesisUtterance('')); } catch (e) {} }
+    S.running = true;
+    keepAwake(true);
+    render();
+    updateButtons();
+  } catch (err) {
+    S.running = false;
+    const denied = err && (err.name === 'NotAllowedError' || err.name === 'SecurityError');
+    setStatus(denied ? `Access was blocked. Allow the ${cfg.mode === 'mic' ? 'microphone' : 'camera'} for this site in Safari's settings (aA menu › Website Settings), then try again.` : (err.message || String(err)), 'error');
+    updateButtons();
+  }
+}
+
+function stop() {
+  S.running = false;
+  if (cfg.mode === 'mic') stopMic();
+  keepAwake(false);
+  const n = S.lanes.slice(0, laneCount()).reduce((a, l) => a + l.laps.length, 0);
+  setStatus(n ? `Stopped. ${n} ${n === 1 ? 'lap' : 'laps'} timed.` : 'Stopped.');
+  render();
+  updateButtons();
+}
+
+function clearLaps() {
+  resetLanes();
+  if (audio.node && audio.node.port) audio.node.port.postMessage({ reset: true });
+  if (audio.detector) audio.detector.reset();
+  cam.watchers.forEach((w) => w.resetLaps());
+}
+
+function updateButtons() {
+  const go = $('go');
+  go.textContent = S.running ? 'Stop' : 'Start';
+  go.classList.toggle('stop', S.running);
+  $('reset').disabled = S.running;
+}
+
+$('go').addEventListener('click', () => (S.running ? stop() : start()));
+$('reset').addEventListener('click', () => { clearLaps(); S.source = null; render(); setStatus('Cleared. Press Start when the car is ready.'); });
+
+/* ---------- mode switch ---------- */
+function setMode(mode) {
+  if (S.running) stop();
+  cfg.mode = mode; store.save();
+  $('mode-mic').setAttribute('aria-selected', String(mode === 'mic'));
+  $('mode-cam').setAttribute('aria-selected', String(mode === 'cam'));
+  $('cam').hidden = mode !== 'cam';
+  $('meter').hidden = mode !== 'mic';
+  document.querySelectorAll('[data-for]').forEach((el) => { el.hidden = el.dataset.for !== mode; });
+  if (mode === 'mic') { stopCamera(); setStatus('Put the phone beside the lap counter, then press Start.'); }
+  else setStatus('Turn on the camera and draw a box over each lane.');
+  if (S.source && S.source !== mode && S.source !== 'file') { clearLaps(); S.source = null; }
+  render();
+}
+$('mode-mic').addEventListener('click', () => setMode('mic'));
+$('mode-cam').addEventListener('click', () => setMode('cam'));
+$('cam-on').addEventListener('click', async () => {
+  try { await startCamera(); setStatus('Camera on. Draw a box over each lane, then press Start.'); }
+  catch (err) { setStatus(err && err.name === 'NotAllowedError' ? "Camera access was blocked. Allow it for this site in Safari's settings, then try again." : (err.message || String(err)), 'error'); }
+});
+$('draw-1').addEventListener('click', () => setDrawing(0));
+$('draw-2').addEventListener('click', () => setDrawing(1));
+
+/* ---------- settings ---------- */
+function bindRange(id, key, outFmt, after) {
+  const el = $(id), out = $(id + '-out');
+  el.value = cfg[key];
+  out.textContent = outFmt(cfg[key]);
+  el.addEventListener('input', () => { cfg[key] = Number(el.value); out.textContent = outFmt(cfg[key]); store.save(); after && after(); });
+}
+bindRange('rise', 'rise', (v) => v + ' dB', () => { pushMicOptions(); showMeter(null); });
+bindRange('cam-thr', 'camThr', (v) => String(v), applyCamOptions);
+bindRange('minlap', 'minLap', (v) => v.toFixed(1) + ' s', () => { pushMicOptions(); applyCamOptions(); });
+$('race').value = String(cfg.race);
+$('race').addEventListener('change', () => { cfg.race = Number($('race').value); store.save(); S.lanes.forEach((l) => { l.finishedAt = null; recompute(l); }); render(); });
+$('speak').checked = cfg.speak;
+$('speak').addEventListener('change', () => { cfg.speak = $('speak').checked; store.save(); });
+$('awake').checked = cfg.awake;
+$('awake').addEventListener('change', () => { cfg.awake = $('awake').checked; store.save(); keepAwake(S.running && cfg.awake); });
+
+/* ---------- check a recording ---------- */
+async function analyse(arrayBuffer, label) {
+  if (S.running) stop();
+  setStatus('Reading ' + label + '…');
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  const ctx = audio.ctx || (audio.ctx = new Ctx());
+  const buf = await new Promise((res, rej) => {
+    const p = ctx.decodeAudioData(arrayBuffer, res, rej);
+    if (p && p.then) p.then(res, rej);
+  });
+  const ch = buf.getChannelData(0);
+  const d = new PassDetector(buf.sampleRate, { rise: cfg.rise, minLap: cfg.minLap });
+  if (cfg.mode !== 'mic') setMode('mic');
+  clearLaps();
+  S.source = 'file';
+  for (let i = 0; i < ch.length; i += 4096) for (const p of d.process(ch.subarray(i, i + 4096))) {
+    const lane = S.lanes[0];
+    if (p.amend && lane.passes.length) lane.passes[lane.passes.length - 1] = p.t; else lane.passes.push(p.t);
+  }
+  recompute(S.lanes[0]);
+  render();
+  const n = S.lanes[0].laps.length;
+  setStatus(`${label}: found ${S.lanes[0].passes.length} passes, ${n} ${n === 1 ? 'lap' : 'laps'}, in ${buf.duration.toFixed(1)} s of audio.`);
+}
+$('load-sample').addEventListener('click', async () => {
+  try { const r = await fetch('samples/13-laps.m4a'); if (!r.ok) throw new Error('Could not load the sample (' + r.status + ').'); await analyse(await r.arrayBuffer(), 'Sample recording'); }
+  catch (err) { setStatus(err.message || "This browser can't decode the sample.", 'error'); }
+});
+$('file').addEventListener('change', async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  try { await analyse(await f.arrayBuffer(), f.name); }
+  catch (err) { setStatus(`Couldn't read ${f.name}. Try a .m4a or .wav file.`, 'error'); }
+  e.target.value = '';
+});
+$('copy').addEventListener('click', async () => {
+  const lines = [];
+  for (let i = 0; i < laneCount(); i++) {
+    const laps = S.lanes[i].laps;
+    if (!laps.length) continue;
+    lines.push(laneName(i) + ': ' + laps.map((l, k) => `${k + 1}) ${fmt(l)}`).join('  ') + `  | best ${fmt(Math.min(...laps))}`);
+  }
+  const text = lines.join('\n') || 'No laps yet.';
+  try { await navigator.clipboard.writeText(text); setStatus('Lap times copied.'); }
+  catch (e) { setStatus(text); }
+});
+
+setMode(cfg.mode);
+showMeter(null);
+updateButtons();
+</script>
+</body>
+</html>
