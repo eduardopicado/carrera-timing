@@ -19,12 +19,13 @@ jobs:
           node-version: 'lts/*'
       - name: Install ffmpeg
         run: sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
-      - name: Mic detector on the sample recording, and blips with the car stopped
+      - name: Mic detector on the sample recording, blips with the car stopped, and lap sounds
         run: |
           for sr in 48000 44100; do
             ffmpeg -loglevel error -i samples/13-laps.m4a -ac 1 -ar $sr -f f32le "$RUNNER_TEMP/laps-$sr.f32"
             node test/detector.test.js "$RUNNER_TEMP/laps-$sr.f32" $sr
             node test/blips.test.js "$RUNNER_TEMP/laps-$sr.f32" $sr
+            node test/cues.test.js "$RUNNER_TEMP/laps-$sr.f32" $sr
           done
       - name: Camera lane watcher
         run: node test/lanes.test.js
@@ -45,7 +46,7 @@ jobs:
       - name: Collect the site files
         run: |
           mkdir _site
-          cp index.html detector.js lanes.js manifest.webmanifest icon-180.png icon-512.png _site/
+          cp index.html detector.js lanes.js cues.js manifest.webmanifest icon-180.png icon-512.png _site/
           cp -r samples _site/
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
