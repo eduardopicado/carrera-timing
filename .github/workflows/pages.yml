@@ -29,19 +29,17 @@ jobs:
       - name: Camera lane watcher
         run: node test/lanes.test.js
 
-  deploy:
+  # Upload and deploy are separate jobs, as in GitHub's Pages starter
+  # workflows. In one job, deploy-pages looked the artifact up less than a
+  # second after the upload and GitHub didn't list it yet ("No artifacts named
+  # github-pages were found"); it failed that way on two of three deploys.
+  build:
     if: github.event_name != 'pull_request'
     needs: test
     runs-on: ubuntu-latest
     permissions:
-      pages: write
-      id-token: write
-    concurrency:
-      group: pages
-      cancel-in-progress: false
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      contents: read
+      pages: read
     steps:
       - uses: actions/checkout@v7
       - name: Collect the site files
@@ -53,5 +51,19 @@ jobs:
       - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - id: deployment
         uses: actions/deploy-pages@v5
