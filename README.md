@@ -23,6 +23,19 @@ If laps are missed or extra laps appear, use **Settings**:
 
 **Check a recording** runs the mic detector over a Voice Memos recording, so you can test settings without the track running.
 
+## Lap alerts
+
+So you can tell how a lap went without looking away from the track, each lap gets a sound and a full-screen flash:
+
+| Lap | Sound | Flash |
+|---|---|---|
+| Session best | three rising notes | purple |
+| Faster than the lap before | two rising notes | green |
+| Slower than the lap before | two falling notes | yellow |
+| First lap | one note | white |
+
+Settings › Lap alerts sets each one to every lap, session best only, or off; **Try them** plays all three. The sounds are pure tones between 587 Hz and 1175 Hz, below the 2 kHz the mic detector listens to, so the phone doesn't time its own beeps (`test/cues.test.js` mixes them into the sample recording at full volume and checks the laps are unchanged). Not yet tried on a real iPhone: in mic mode iOS may play them more quietly while the microphone is in use. The flash doesn't depend on that.
+
 ## How the mic detection works
 
 Measured on `samples/13-laps.m4a` (13 laps, about 2.5 s each), a pass sounds the same every lap. The motor swells for about 250 ms as the car approaches, and a cluster of clicks comes as it trips the counter. Then the level falls away sharply within about 100 ms. The clicks inside the cluster vary from lap to lap, so timing from the loudest click makes lap times jump by up to 0.2 s. The drop-off after the clicks lands at the same point every lap, so `detector.js` uses it as the timing mark:
@@ -46,6 +59,7 @@ The detector runs in an AudioWorklet, with a main-thread fallback for older Safa
 - `index.html`: the app (UI, mic and camera handling)
 - `detector.js`: mic pass detector
 - `lanes.js`: camera lane watcher
+- `cues.js`: lap sounds
 - `samples/13-laps.m4a`: the reference recording
 - `test/`: detector tests
 
@@ -59,5 +73,6 @@ The detector runs in an AudioWorklet, with a main-thread fallback for older Safa
 ffmpeg -i samples/13-laps.m4a -ac 1 -ar 48000 -f f32le /tmp/laps.f32
 node test/detector.test.js /tmp/laps.f32 48000
 node test/blips.test.js /tmp/laps.f32 48000
+node test/cues.test.js /tmp/laps.f32 48000
 node test/lanes.test.js
 ```

@@ -169,6 +169,22 @@ select { background: var(--panel-2); border: 1px solid var(--line); border-radiu
 .file-btn { position: relative; overflow: hidden; display: inline-flex; }
 .file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .foot { color: var(--muted); font-size: 13px; padding-block: 6px 12px; }
+/* Full-screen lap flash: big enough to catch from the corner of your eye. */
+.lap-flash {
+  position: fixed; inset: 0; z-index: 30; pointer-events: none;
+  display: grid; place-content: center; justify-items: center; gap: 1.5vh; text-align: center;
+  background: var(--flash); color: var(--asphalt);
+  padding: env(safe-area-inset-top, 0px) max(16px, env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) max(16px, env(safe-area-inset-left, 0px));
+  animation: lap-flash .7s ease-out forwards;
+}
+.lap-flash span { font: 700 clamp(22px, 5vw, 52px)/1 var(--display); text-transform: uppercase; letter-spacing: .1em; }
+.lap-flash b { font: 700 clamp(96px, 30vw, 360px)/.9 var(--display); font-variant-numeric: tabular-nums; }
+.lap-flash small { font: 600 clamp(16px, 3.2vw, 30px)/1.2 var(--body); }
+.lap-flash.best { --flash: var(--t-best); color: #fff; }
+.lap-flash.faster { --flash: var(--t-pb); }
+.lap-flash.slower { --flash: var(--t-slow); }
+.lap-flash.first { --flash: var(--text); }
+@keyframes lap-flash { 0% { opacity: 0; } 10% { opacity: 1; } 55% { opacity: 1; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
 </head>
@@ -234,6 +250,25 @@ select { background: var(--panel-2); border: 1px solid var(--line); border-radiu
         <input type="range" id="minlap" min="0.5" max="5" step="0.1" value="1.2">
         <p>Anything quicker than this after a lap is ignored. Keep it below your fastest real lap.</p>
       </div>
+      <div class="field">
+        <span class="label">Lap alerts</span>
+        <p>Know how each lap went without looking away from the track. Sounds: three rising notes for a session best, two rising for faster than the lap before, two falling for slower. The flash fills the screen purple, green or yellow.</p>
+        <div class="row">
+          <label for="cues">Sounds</label>
+          <select id="cues">
+            <option value="all">Every lap</option>
+            <option value="best">Session best only</option>
+            <option value="off">Off</option>
+          </select>
+          <label for="flash-mode">Flash</label>
+          <select id="flash-mode">
+            <option value="all">Every lap</option>
+            <option value="best">Session best only</option>
+            <option value="off">Off</option>
+          </select>
+          <button class="btn" id="cue-test" type="button">Try them</button>
+        </div>
+      </div>
       <label class="check"><input type="checkbox" id="speak"> <span>Call out each lap time<br><small class="hint">In mic mode the phone's own voice can be counted as a lap. Use with headphones or keep the volume low.</small></span></label>
       <label class="check"><input type="checkbox" id="awake" checked> <span>Keep the screen on while timing</span></label>
     </div>
@@ -254,6 +289,8 @@ select { background: var(--panel-2); border: 1px solid var(--line); border-radiu
   <p class="foot">Mic mode times one car from the sound of it passing the phone. Camera mode times two cars from boxes drawn over each lane.</p>
 </div>
 
+<div class="lap-flash" id="lap-flash" hidden aria-hidden="true"><span id="flash-label"></span><b id="flash-time"></b><small id="flash-note"></small></div>
+
 <div class="controls">
   <div class="in">
     <button class="go" id="go">Start</button>
@@ -263,12 +300,13 @@ select { background: var(--panel-2); border: 1px solid var(--line); border-radiu
 
 <script src="detector.js"></script>
 <script src="lanes.js"></script>
+<script src="cues.js"></script>
 <script>
 'use strict';
 const $ = (id) => document.getElementById(id);
 
 /* ---------- settings ---------- */
-const DEFAULTS = { mode: 'mic', rise: 12, camThr: 18, minLap: 1.2, race: 0, speak: false, awake: true, boxes: [null, null] };
+const DEFAULTS = { mode: 'mic', rise: 12, camThr: 18, minLap: 1.2, race: 0, speak: false, awake: true, boxes: [null, null], cues: 'all', flashMode: 'all' };
 const store = {
   load() { try { return Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem('pitwall') || '{}')); } catch (e) { return Object.assign({}, DEFAULTS); } },
   save() { try { localStorage.setItem('pitwall', JSON.stringify(cfg)); } catch (e) { /* private mode */ } },
@@ -301,13 +339,14 @@ function onPass(i, t, amend) {
   const lane = S.lanes[i];
   if (!lane) return;
   if (lane.finishedAt != null && !amend) return;
+  const prevOverall = bestOverall();
+  const lapsBefore = lane.laps.length;
   if (amend && lane.passes.length) lane.passes[lane.passes.length - 1] = t;
   else lane.passes.push(t);
   recompute(lane);
   render();
   flash(i);
-  const last = lane.laps[lane.laps.length - 1];
-  if (cfg.speak && last != null && !amend) say(lane, last);
+  if (!amend && lane.laps.length > lapsBefore) lapAlert(lane, prevOverall);
 }
 
 /* ---------- formatting ---------- */
@@ -407,10 +446,52 @@ function setStatus(text, kind) {
   $('status').className = 'status' + (kind ? ' ' + kind : '');
 }
 
+/* ---------- lap alerts ---------- */
+function ensureAudioCtx() {
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!audio.ctx) audio.ctx = new Ctx();
+  if (audio.ctx.state !== 'running') audio.ctx.resume().catch(() => {});
+  return audio.ctx;
+}
+
+// Sound, flash and voice for a finished lap. prevOverall: session best before it.
+function lapAlert(lane, prevOverall) {
+  const laps = lane.laps, lap = laps[laps.length - 1];
+  const kind = lapKind(laps, prevOverall);
+  let wait = 0;
+  if (cfg.cues === 'all' || (cfg.cues === 'best' && kind === 'best')) {
+    try {
+      const ctx = ensureAudioCtx();
+      const end = playCue(ctx, kind, ctx.currentTime + 0.01, 0.7);
+      audio.quietUntil = end + 0.15;   // mic mode: don't let the beep move the lap time
+      wait = (end - ctx.currentTime) * 1000 + 60;
+    } catch (e) { /* no audio */ }
+  }
+  if (cfg.flashMode === 'all' || (cfg.flashMode === 'best' && kind === 'best')) showLapFlash(lane, kind, lap, laps[laps.length - 2], prevOverall);
+  if (cfg.speak) setTimeout(() => say(lane, lap, kind), wait);
+}
+
+let flashTimer = 0;
+function showLapFlash(lane, kind, lap, prev, prevOverall) {
+  const el = $('lap-flash');
+  const who = cfg.mode === 'cam' ? 'Lane ' + (lane.i + 1) + ' · ' : '';
+  const label = { best: 'Session best', faster: 'Faster', slower: 'Slower', first: 'Lap 1' }[kind];
+  let note = '';
+  if (kind === 'best' && isFinite(prevOverall)) note = (prevOverall - lap).toFixed(2) + ' under the old best';
+  else if (prev != null) note = Math.abs(lap - prev).toFixed(2) + (lap < prev ? ' quicker' : ' slower') + ' than the lap before';
+  $('flash-label').textContent = who + label;
+  $('flash-time').textContent = fmt(lap);
+  $('flash-note').textContent = note;
+  el.className = 'lap-flash ' + kind;
+  el.hidden = true; void el.offsetWidth; el.hidden = false;   // restart the animation
+  clearTimeout(flashTimer);
+  flashTimer = setTimeout(() => { el.hidden = true; }, 700);
+}
+
 /* ---------- voice ---------- */
-function say(lane, t) {
+function say(lane, t, kind) {
   try {
-    const words = (cfg.mode === 'cam' ? 'Lane ' + (lane.i + 1) + ', ' : '') + t.toFixed(2);
+    const words = (cfg.mode === 'cam' ? 'Lane ' + (lane.i + 1) + ', ' : '') + (kind === 'best' ? 'best lap, ' : '') + t.toFixed(2);
     const u = new SpeechSynthesisUtterance(words);
     u.rate = 1.15;
     speechSynthesis.cancel();
@@ -467,7 +548,12 @@ registerProcessor('pass-detector', PassProcessor);`;
 }
 
 function onAudioMessage(m) {
-  if (m.type === 'pass') { if (S.running && S.source === 'mic') onPass(0, m.t, m.amend); }
+  if (m.type === 'pass') {
+    // An amend replaces the last lap's time with a louder pass. A lap sound or
+    // the voice playing right then must not do that.
+    if (m.amend && ((audio.quietUntil && m.t < audio.quietUntil) || (window.speechSynthesis && speechSynthesis.speaking))) return;
+    if (S.running && S.source === 'mic') onPass(0, m.t, m.amend);
+  }
   else if (m.type === 'meter' && audio.stream) showMeter(m);
 }
 
@@ -705,6 +791,10 @@ async function start() {
       setStatus('Watching. Each car starts lap 1 when it first crosses its box.', 'live');
     }
     if (cfg.speak) { try { speechSynthesis.speak(new SpeechSynthesisUtterance('')); } catch (e) {} }
+    if (cfg.cues !== 'off') {
+      try { if (navigator.audioSession) navigator.audioSession.type = cfg.mode === 'cam' ? 'playback' : 'auto'; } catch (e) {}
+      try { ensureAudioCtx(); } catch (e) {}
+    }
     S.running = true;
     fitFrame();
     keepAwake(true);
@@ -781,6 +871,19 @@ bindRange('cam-thr', 'camThr', (v) => String(v), applyCamOptions);
 bindRange('minlap', 'minLap', (v) => v.toFixed(1) + ' s', () => { pushMicOptions(); applyCamOptions(); });
 $('race').value = String(cfg.race);
 $('race').addEventListener('change', () => { cfg.race = Number($('race').value); store.save(); S.lanes.forEach((l) => { l.finishedAt = null; recompute(l); }); render(); });
+$('cues').value = cfg.cues;
+$('cues').addEventListener('change', () => { cfg.cues = $('cues').value; store.save(); });
+$('flash-mode').value = cfg.flashMode;
+$('flash-mode').addEventListener('change', () => { cfg.flashMode = $('flash-mode').value; store.save(); });
+$('cue-test').addEventListener('click', () => {
+  const demo = { i: 0, laps: [] };
+  const steps = [['best', 2.31, 2.36, 2.36], ['faster', 2.34, 2.41, 2.31], ['slower', 2.45, 2.34, 2.31]];
+  try { ensureAudioCtx(); } catch (e) {}
+  steps.forEach(([kind, lap, prev, best], k) => setTimeout(() => {
+    try { if (cfg.cues !== 'off') { const ctx = ensureAudioCtx(); playCue(ctx, kind, ctx.currentTime + 0.01, 0.7); } } catch (e) {}
+    if (cfg.flashMode !== 'off') showLapFlash(demo, kind, lap, prev, best);
+  }, k * 1100));
+});
 $('speak').checked = cfg.speak;
 $('speak').addEventListener('change', () => { cfg.speak = $('speak').checked; store.save(); });
 $('awake').checked = cfg.awake;
