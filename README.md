@@ -9,7 +9,7 @@ It shows the running lap, last, best and average lap, and a lap list. The fastes
 
 ## Using it
 
-1. Open the page in Safari over **https**. Safari only allows the mic and camera on secure pages. In Safari use Share › Add to Home Screen to get an app icon.
+1. Open **https://eduardopicado.github.io/carrera-timing/** in Safari. Safari only allows the mic and camera on https pages. Use Share › Add to Home Screen to get an app icon.
 2. **Mic:** place the phone within about 20 cm of the lap counter and press **Start**. The first time the car passes starts lap 1.
 3. **Camera:** turn on the camera and tap **Draw lane 1 box**. Drag a narrow box across lane 1 just past the line, then do the same for lane 2. Press **Start**. The number on each box shows how much the picture is changing, and it should jump when a car goes through.
 
@@ -47,6 +47,10 @@ The detector runs in an AudioWorklet, with a main-thread fallback for older Safa
 - `lanes.js`: camera lane watcher
 - `samples/13-laps.m4a`: the reference recording
 - `test/`: detector tests
+
+## Deploying
+
+`.github/workflows/pages.yml` runs the tests on every pull request. On every push to `main` it runs them again and publishes the app to GitHub Pages. One-time setup: in Settings › Pages, set **Source** to **GitHub Actions**.
 
 ## Tests
 
