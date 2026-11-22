@@ -30,9 +30,10 @@ Measured on `samples/13-laps.m4a` (13 laps, about 2.5 s each), a pass sounds the
 1. High-pass at 2 kHz, then measure loudness in 2 ms steps, smoothed over 20 ms.
 2. Background = median loudness over the last 2 s.
 3. A pass starts when the level is `rise` dB over the background (12 by default). The lap is stamped when the level falls `drop` dB (12) below the pass's peak.
-4. Nothing counts for `minLap` seconds after a lap, except a much louder pass, which replaces it. This handles the motor spinning up from silence just before the first real pass.
+4. Nothing counts for `minLap` seconds after a lap, except a much louder pass, which replaces it.
+5. Passes only count while the car is running: the 2 s background must be 10 dB above the quietest the room has been (the car stopped). Blipping the throttle with the car standing still swells and drops just like a pass, but the background stays at the quiet-room level, so it is ignored. The meter shows "car running" or "car stopped". The car has to run for about a second before passes count, so the first crossing after pulling away from a standstill may not be counted.
 
-On the sample this finds all 13 laps with no extras for any trigger from 6 to 14 dB, at both 44.1 and 48 kHz. Lap times match the offline analysis to within 0.02 s.
+On the sample this finds every pass after the first (12 laps) with no extras, for any trigger from 6 to 14 dB, at both 44.1 and 48 kHz. Lap times match the offline analysis to within 0.02 s. `test/blips.test.js` pastes blips and held throttle into the stopped-car silence from the same recording and checks that none count.
 
 The detector runs in an AudioWorklet, with a main-thread fallback for older Safari. The mic is opened with echo cancellation, noise suppression and auto-gain turned off, so iOS doesn't filter out the clicks.
 
@@ -57,5 +58,6 @@ The detector runs in an AudioWorklet, with a main-thread fallback for older Safa
 ```sh
 ffmpeg -i samples/13-laps.m4a -ac 1 -ar 48000 -f f32le /tmp/laps.f32
 node test/detector.test.js /tmp/laps.f32 48000
+node test/blips.test.js /tmp/laps.f32 48000
 node test/lanes.test.js
 ```

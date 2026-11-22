@@ -48,7 +48,7 @@ button, select, input { font: inherit; color: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 .wrap {
-  max-width: 980px; margin: 0 auto;
+  max-width: 1200px; margin: 0 auto;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
   display: grid; gap: 16px;
@@ -74,13 +74,16 @@ button { cursor: pointer; }
 /* Lane boards */
 .board { display: grid; gap: 16px; grid-template-columns: 1fr; }
 .board.two { grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); }
-.lane { background: var(--panel); border-radius: 14px; overflow: hidden; display: grid; min-width: 0; transition: box-shadow .25s; }
+.lane { background: var(--panel); border-radius: 14px; overflow: hidden; display: grid; min-width: 0; transition: box-shadow .25s; container-type: inline-size; }
 .lane-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 16px; background: var(--panel-2); border-top: 4px solid var(--lane-color, var(--lane1)); }
 .lane-name { font: 700 18px/1 var(--display); text-transform: uppercase; letter-spacing: .08em; }
 .lap-count { font: 600 18px/1 var(--display); letter-spacing: .04em; color: var(--muted); font-variant-numeric: tabular-nums; }
 .lap-count b { color: var(--text); font-weight: 700; }
 .lane-body { padding: 14px 16px 16px; display: grid; gap: 14px; }
-.running { font: 600 clamp(64px, 19vw, 112px)/.9 var(--display); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.lane-main { display: grid; gap: 14px; align-content: start; min-width: 0; }
+/* Sizes follow the lane's own width (cqi), so a tablet gets numbers readable
+   from across the track, and two lanes side by side each scale to their half. */
+.running { font: 600 clamp(64px, 19vw, 112px)/.9 var(--display); font-size: clamp(64px, min(22cqi, 30vh), 260px); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
 .running small { font-size: .38em; color: var(--muted); letter-spacing: .02em; margin-left: 4px; }
 .running.idle { color: var(--muted); }
 .lane.flash { box-shadow: 0 0 0 3px var(--lane-color, var(--lane1)); }
@@ -88,7 +91,7 @@ button { cursor: pointer; }
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border-radius: 10px; overflow: hidden; }
 .stat { background: var(--panel); padding: 8px 10px; display: grid; gap: 2px; }
 .stat span { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); }
-.stat b { font: 600 26px/1 var(--display); font-variant-numeric: tabular-nums; }
+.stat b { font: 600 26px/1 var(--display); font-size: clamp(26px, 6.5cqi, 56px); font-variant-numeric: tabular-nums; }
 .c-best { color: var(--t-best); } .c-pb { color: var(--t-pb); } .c-slow { color: var(--t-slow); }
 .laps { list-style: none; margin: 0; padding: 0; display: grid; max-height: 260px; overflow-y: auto; border-top: 1px solid var(--line); }
 .laps li { display: grid; grid-template-columns: 3.2em 1fr auto; gap: 10px; align-items: baseline; padding: 6px 2px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
@@ -96,14 +99,27 @@ button { cursor: pointer; }
 .laps .t { font: 600 21px/1 var(--display); }
 .laps .d { font-size: 13px; color: var(--muted); }
 .laps .empty { display: block; color: var(--muted); border: 0; padding-top: 10px; }
+@container (min-width: 700px) {
+  .lane-head { padding: 14px 22px; }
+  .lane-name, .lap-count { font-size: 24px; }
+  .lane-body { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); column-gap: 28px; align-items: start; padding: 18px 22px 22px; }
+  .running { font-size: clamp(64px, min(19cqi, 30vh), 260px); }
+  .stat { padding: 12px 14px; }
+  .stat span { font-size: 13px; }
+  .stat b { font-size: clamp(30px, 5cqi, 56px); }
+  .laps { max-height: min(62vh, 620px); border-top: 0; }
+  .laps .t { font-size: 30px; }
+  .laps .n, .laps .d { font-size: 15px; }
+}
 .chip { font: 600 11px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; padding: 3px 6px; border-radius: 4px; margin-left: 6px; vertical-align: 3px; }
 .chip.best { background: var(--t-best); color: #fff; }
 .chip.pb { background: var(--t-pb); color: var(--asphalt); }
 
 /* Camera */
 .cam { display: grid; gap: 10px; }
-.cam-frame { position: relative; background: #000; border-radius: 12px; overflow: hidden; touch-action: none; max-width: 100%; }
-.cam-frame video { display: block; width: 100%; height: auto; }
+.cam-frame { position: relative; background: #000; border-radius: 12px; overflow: hidden; max-width: 100%; margin-inline: auto; touch-action: pan-x pan-y; }
+.cam-frame.drawing { touch-action: none; box-shadow: 0 0 0 2px var(--text); }
+.cam-frame video { display: block; width: 100%; height: 100%; object-fit: fill; }
 .cam-frame canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .cam-empty { aspect-ratio: 4 / 3; display: grid; place-items: center; text-align: center; padding: 20px; color: var(--muted); }
 .cam-tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
@@ -129,7 +145,7 @@ button { cursor: pointer; }
   border-top: 1px solid var(--line);
   padding: 12px max(16px, env(safe-area-inset-right, 0px)) calc(12px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
 }
-.controls .in { max-width: 980px; margin: 0 auto; display: flex; gap: 10px; }
+.controls .in { max-width: 1200px; margin: 0 auto; display: flex; gap: 10px; }
 .go { flex: 1; border: 0; border-radius: 12px; padding: 16px; font: 700 22px/1 var(--display); letter-spacing: .1em; text-transform: uppercase; background: var(--t-pb); color: var(--asphalt); }
 .go.stop { background: var(--kerb); color: #fff; }
 .controls .btn { border-radius: 12px; padding-inline: 18px; }
@@ -169,15 +185,15 @@ select { background: var(--panel-2); border: 1px solid var(--line); border-radiu
   <div class="status" id="status" role="status"><span class="dot"></span><span id="status-text">Put the phone beside the lap counter, then press Start.</span></div>
 
   <section class="cam" id="cam" hidden>
-    <div class="cam-frame" id="cam-frame">
-      <div class="cam-empty" id="cam-empty">Prop the phone above the start line, pointing down at both lanes, then turn on the camera.</div>
-      <video id="video" playsinline muted hidden></video>
-      <canvas id="overlay" hidden></canvas>
-    </div>
     <div class="cam-tools">
       <button class="btn" id="cam-on">Turn on camera</button>
       <button class="btn" id="draw-1" aria-pressed="false" disabled>Draw lane 1 box</button>
       <button class="btn" id="draw-2" aria-pressed="false" disabled>Draw lane 2 box</button>
+    </div>
+    <div class="cam-frame" id="cam-frame">
+      <div class="cam-empty" id="cam-empty">Prop the phone above the start line, pointing down at both lanes, then turn on the camera.</div>
+      <video id="video" playsinline muted hidden></video>
+      <canvas id="overlay" hidden></canvas>
     </div>
     <p class="hint" id="cam-hint">Drag a box across each lane just past the start line. Keep each box to its own lane.</p>
   </section>
@@ -185,7 +201,7 @@ select { background: var(--panel-2); border: 1px solid var(--line); border-radiu
   <section class="board" id="board" aria-live="polite"></section>
 
   <section class="meter" id="meter">
-    <div class="meter-row"><span>Sound above background</span><span><b id="meter-val">–</b> · trigger at <b id="meter-thr">12 dB</b></span></div>
+    <div class="meter-row"><span>Sound above background · <b id="meter-car">–</b></span><span><b id="meter-val">–</b> · trigger at <b id="meter-thr">12 dB</b></span></div>
     <div class="bar"><i id="meter-bar"></i><em id="meter-mark"></em></div>
   </section>
 
@@ -341,12 +357,14 @@ function render() {
     html += `<article class="lane" id="lane-${i}" style="--lane-color: var(--lane${i + 1})">
       <div class="lane-head"><span class="lane-name">${laneName(i)}</span><span class="lap-count">${count}</span></div>
       <div class="lane-body">
-        <div class="running idle" id="run-${i}">0.00</div>
-        ${status}
-        <div class="stats">
-          <div class="stat"><span>Last</span><b class="${lastCls}">${fmt(last)}</b></div>
-          <div class="stat"><span>Best</span><b class="${best != null && best === overall ? 'c-best' : 'c-pb'}">${fmt(best)}</b></div>
-          <div class="stat"><span>Average</span><b>${laps.length ? fmt(sum(laps) / laps.length) : '–'}</b></div>
+        <div class="lane-main">
+          <div class="running idle" id="run-${i}">0.00</div>
+          ${status}
+          <div class="stats">
+            <div class="stat"><span>Last</span><b class="${lastCls}">${fmt(last)}</b></div>
+            <div class="stat"><span>Best</span><b class="${best != null && best === overall ? 'c-best' : 'c-pb'}">${fmt(best)}</b></div>
+            <div class="stat"><span>Average</span><b>${laps.length ? fmt(sum(laps) / laps.length) : '–'}</b></div>
+          </div>
         </div>
         <ul class="laps">${rows}</ul>
       </div>
@@ -511,7 +529,8 @@ function showMeter(m) {
   const bar = $('meter-bar');
   $('meter-mark').style.left = meterPct(cfg.rise) + '%';
   $('meter-thr').textContent = cfg.rise + ' dB';
-  if (!m || m.over < -100) { bar.style.width = '0'; $('meter-val').textContent = '–'; return; }
+  if (!m || m.over < -100) { bar.style.width = '0'; $('meter-val').textContent = '–'; $('meter-car').textContent = '–'; return; }
+  $('meter-car').textContent = m.running ? 'car running' : 'car stopped, passes ignored';
   bar.style.width = meterPct(m.over) + '%';
   bar.classList.toggle('hot', m.over >= cfg.rise);
   $('meter-val').textContent = (m.over >= 0 ? '+' : '') + m.over.toFixed(0) + ' dB';
@@ -529,6 +548,7 @@ async function startCamera() {
   v.srcObject = cam.stream;
   v.hidden = false; $('overlay').hidden = false; $('cam-empty').hidden = true;
   await v.play();
+  fitFrame();
   cam.work = document.createElement('canvas');
   cam.wctx = cam.work.getContext('2d', { willReadFrequently: true });
   $('cam-on').textContent = 'Camera on';
@@ -547,9 +567,26 @@ function stopCamera() {
   cam.stream = null;
   const v = $('video'); v.srcObject = null; v.hidden = true;
   $('overlay').hidden = true; $('cam-empty').hidden = false;
+  fitFrame();
   $('cam-on').textContent = 'Turn on camera'; $('cam-on').disabled = false;
   $('draw-1').disabled = $('draw-2').disabled = true;
 }
+
+// Show the whole picture at its real shape, no taller than half the screen,
+// so the buttons and lap boards stay in reach when the phone is upright.
+// While timing it shrinks to a strip so the lap boards fill the screen.
+function fitFrame() {
+  const f = $('cam-frame'), v = $('video');
+  if (!cam.stream || !v.videoWidth) { f.style.width = f.style.height = ''; return; }
+  const ar = v.videoWidth / v.videoHeight;
+  const maxH = Math.max(S.running ? 120 : 200, window.innerHeight * (S.running ? 0.22 : 0.5));
+  const w = Math.min(f.parentElement.clientWidth, maxH * ar);
+  f.style.width = Math.round(w) + 'px';
+  f.style.height = Math.round(w / ar) + 'px';
+  cam.fitFor = v.videoWidth + 'x' + v.videoHeight;
+}
+window.addEventListener('resize', fitFrame);
+window.addEventListener('orientationchange', () => setTimeout(fitFrame, 300));
 
 function scheduleFrame() {
   const v = $('video');
@@ -561,6 +598,7 @@ function scheduleFrame() {
 function camFrame(t) {
   const v = $('video');
   if (!v.videoWidth) return;
+  if (cam.fitFor !== v.videoWidth + 'x' + v.videoHeight) fitFrame(); // camera rotated
   const W = 320, H = Math.round(320 * v.videoHeight / v.videoWidth);
   if (cam.work.width !== W || cam.work.height !== H) { cam.work.width = W; cam.work.height = H; }
   cam.wctx.drawImage(v, 0, 0, W, H);
@@ -610,6 +648,7 @@ function drawOverlay() {
 
 function setDrawing(lane) {
   cam.drawing = cam.drawing === lane ? null : lane;
+  $('cam-frame').classList.toggle('drawing', cam.drawing != null);
   $('draw-1').setAttribute('aria-pressed', String(cam.drawing === 0));
   $('draw-2').setAttribute('aria-pressed', String(cam.drawing === 1));
   $('cam-hint').textContent = cam.drawing == null ? 'Boxes saved. Watch the number on each box jump when a car goes through.'
@@ -658,7 +697,7 @@ async function start() {
     if (cfg.mode === 'mic') {
       setStatus('Asking for the microphone…');
       await startMic();
-      setStatus('Listening. The first time the car passes starts lap 1.', 'live');
+      setStatus('Listening. Lap 1 starts when the car crosses the line at speed.', 'live');
     } else {
       await startCamera();
       if (!cfg.boxes[0] && !cfg.boxes[1]) { setStatus('Draw a box over each lane first.', 'error'); return; }
@@ -667,6 +706,7 @@ async function start() {
     }
     if (cfg.speak) { try { speechSynthesis.speak(new SpeechSynthesisUtterance('')); } catch (e) {} }
     S.running = true;
+    fitFrame();
     keepAwake(true);
     render();
     updateButtons();
@@ -680,6 +720,7 @@ async function start() {
 
 function stop() {
   S.running = false;
+  fitFrame();
   if (cfg.mode === 'mic') stopMic();
   keepAwake(false);
   const n = S.lanes.slice(0, laneCount()).reduce((a, l) => a + l.laps.length, 0);
