@@ -1,5 +1,7 @@
-// Runs the detector over the sample recording and checks it finds all 14
-// passes (13 laps) with no extras.
+// Runs the detector over the sample recording and checks it finds the passes
+// with no extras. The first pass comes 0.7 s after the car pulls away; the
+// detector only counts passes once the car has been running for about a
+// second, so that one may be missed. The other 12 must all be found.
 //
 //   ffmpeg -i samples/13-laps.m4a -ac 1 -ar 48000 -f f32le /tmp/laps.f32
 //   node test/detector.test.js /tmp/laps.f32 48000
@@ -15,6 +17,8 @@ const pcm = new Float32Array(buf.buffer, buf.byteOffset, buf.length / 4);
 // Where each pass's drop-off lands, measured offline from samples/13-laps.m4a.
 // A detected lap matches if it is within MATCH seconds.
 const truth = [1.76, 4.64, 7.31, 10.01, 12.52, 15.18, 18.01, 20.51, 22.92, 25.47, 27.97, 30.28, 32.73];
+const optional = [1.76];
+const required = truth.filter((c) => !optional.includes(c));
 const MATCH = 0.12;
 
 function run(opts) {
@@ -33,10 +37,10 @@ console.log('rise\\drop', [8, 10, 12, 15].map(d => String(d).padStart(9)).join('
 for (const rise of [6, 8, 10, 12, 14, 16, 18]) {
   const cells = [8, 10, 12, 15].map(drop => {
     const laps = run({ rise, drop });
-    const hit = truth.filter(c => laps.some(t => Math.abs(t - c) < MATCH)).length;
+    const hit = required.filter(c => laps.some(t => Math.abs(t - c) < MATCH)).length;
     const extra = laps.filter(t => !truth.some(c => Math.abs(t - c) < MATCH)).length;
-    if (rise === 12 && drop === 12 && (hit !== truth.length || extra)) failed = true;
-    return `${hit}/${truth.length}${extra ? '+' + extra : '  '}`.padStart(9);
+    if (rise >= 6 && rise <= 14 && drop >= 10 && (hit !== required.length || extra)) failed = true;
+    return `${hit}/${required.length}${extra ? '+' + extra : '  '}`.padStart(9);
   });
   console.log(String(rise).padStart(9), cells.join(''));
 }

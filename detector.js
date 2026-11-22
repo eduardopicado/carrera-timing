@@ -23,8 +23,14 @@
  *     lap is stamped at that moment.
  *  5. No new pass can start for `minLap` seconds after a lap, unless it is
  *     much louder (`amend` dB over the last pass's peak). That pass then
- *     replaces the previous lap's time. This handles the motor spinning up
- *     from silence, which looks like a small pass just before the real one.
+ *     replaces the previous lap's time.
+ *  6. A pass only counts while the car is running: the background (the 2 s
+ *     median) must be `runGap` dB above the quietest the room has been, which
+ *     is the car stopped. Blipping the throttle with the car standing still
+ *     swells and drops just like a pass, but the background stays at the
+ *     quiet-room level. Such a swell is followed to its drop and ignored. The
+ *     cost: the car must run for about a second before passes count, so the
+ *     first crossing after pulling away from a standstill may be missed.
  */
 class PassDetector {
   constructor(sampleRate, opts) {
@@ -35,6 +41,7 @@ class PassDetector {
     this.minLap = opts.minLap != null ? opts.minLap : 1.2; // seconds
     this.amend = opts.amend != null ? opts.amend : 6;    // dB louder to replace the last lap
     this.floorDb = opts.floorDb != null ? opts.floorDb : -70; // ignore anything quieter
+    this.runGap = opts.runGap != null ? opts.runGap : 10; // dB over the quiet room = car running
     this.maxPass = 1.0;                                  // a pass longer than this is abandoned
 
     this.frameLen = Math.max(1, Math.round(sampleRate * 0.002));
@@ -49,11 +56,14 @@ class PassDetector {
     this.histFill = 0;
     this.sinceBg = 0;
     this.bg = -120;
+    this.recent = -120;                                  // median level over the last 0.5 s
+    this.quiet = null;                                   // quietest 0.5 s median so far: the car stopped
+    this.quietFrame = 0;
 
     this.acc = 0;
     this.accN = 0;
     this.frameIndex = 0;
-    this.state = 0;                                      // 0 idle, 1 in a pass
+    this.state = 0;                                      // 0 idle, 1 in a pass, 2 in an ignored swell
     this.peak = -120;
     this.passStart = 0;
     this.lastLapFrame = -1e12;
@@ -84,6 +94,7 @@ class PassDetector {
     if (opts.minLap != null) this.minLap = opts.minLap;
     if (opts.floorDb != null) this.floorDb = opts.floorDb;
     if (opts.amend != null) this.amend = opts.amend;
+    if (opts.runGap != null) this.runGap = opts.runGap;
   }
 
   /** Forget the last lap, e.g. when a new session starts. */
@@ -92,6 +103,7 @@ class PassDetector {
     this.lastLapFrame = -1e12;
     this.lastPeak = -120;
     this.amending = false;
+    if (this.state === 1) this.state = 0;
   }
 
   _updateBackground() {
@@ -99,6 +111,25 @@ class PassDetector {
     const copy = Array.prototype.slice.call(this.hist, 0, n);
     copy.sort(function (a, b) { return a - b; });
     this.bg = copy[n >> 1];
+
+    // Median of the most recent 0.5 s.
+    const m = Math.min(n, 250), last = new Array(m);
+    for (let k = 0; k < m; k++) last[k] = this.hist[(this.histPos - 1 - k + this.histLen) % this.histLen];
+    last.sort(function (a, b) { return a - b; });
+    this.recent = last[m >> 1];
+
+    // The quiet floor follows the quietest moments, creeping up 0.05 dB/s so
+    // a phone moved somewhere noisier recovers within a few minutes.
+    const f = this.frameIndex;
+    if (n < 250) return;                                 // filters still settling: levels read low
+    if (this.quiet === null) this.quiet = this.recent;
+    else this.quiet = Math.min(this.recent, this.quiet + 0.05 * (f - this.quietFrame) * this.frameSec);
+    this.quietFrame = f;
+  }
+
+  /** True when the car sounds like it is running rather than standing still. */
+  running() {
+    return this.quiet !== null && this.bg >= this.quiet + this.runGap;
   }
 
   /**
@@ -145,13 +176,19 @@ class PassDetector {
       if (this.state === 0) {
         if (over >= this.rise && L >= this.floorDb) {
           const free = (f - this.lastLapFrame) * this.frameSec >= this.minLap;
-          if (free || L > this.lastPeak + this.amend) {
+          if (!this.running()) {
+            this.state = 2;                                // swell from a standstill: follow it, ignore it
+            this.peak = L;
+          } else if (free || L > this.lastPeak + this.amend) {
             this.state = 1;
             this.peak = L;
             this.passStart = f;
             this.amending = !free;
           }
         }
+      } else if (this.state === 2) {
+        if (L > this.peak) this.peak = L;
+        if (L <= this.peak - this.drop) this.state = 0;
       } else {
         if (L > this.peak) this.peak = L;
         if (L <= this.peak - this.drop) {
@@ -174,7 +211,7 @@ class PassDetector {
   takeMeter() {
     const m = this.meterPeak;
     this.meterPeak = -120;
-    return { over: m, level: this.level, background: this.bg, inPass: this.state === 1 };
+    return { over: m, level: this.level, background: this.bg, inPass: this.state === 1, running: this.running() };
   }
 }
 

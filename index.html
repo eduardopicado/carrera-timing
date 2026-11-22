@@ -186,7 +186,7 @@ select { background: var(--panel-2); border: 1px solid var(--line); border-radiu
   <section class="board" id="board" aria-live="polite"></section>
 
   <section class="meter" id="meter">
-    <div class="meter-row"><span>Sound above background</span><span><b id="meter-val">–</b> · trigger at <b id="meter-thr">12 dB</b></span></div>
+    <div class="meter-row"><span>Sound above background · <b id="meter-car">–</b></span><span><b id="meter-val">–</b> · trigger at <b id="meter-thr">12 dB</b></span></div>
     <div class="bar"><i id="meter-bar"></i><em id="meter-mark"></em></div>
   </section>
 
@@ -512,7 +512,8 @@ function showMeter(m) {
   const bar = $('meter-bar');
   $('meter-mark').style.left = meterPct(cfg.rise) + '%';
   $('meter-thr').textContent = cfg.rise + ' dB';
-  if (!m || m.over < -100) { bar.style.width = '0'; $('meter-val').textContent = '–'; return; }
+  if (!m || m.over < -100) { bar.style.width = '0'; $('meter-val').textContent = '–'; $('meter-car').textContent = '–'; return; }
+  $('meter-car').textContent = m.running ? 'car running' : 'car stopped, passes ignored';
   bar.style.width = meterPct(m.over) + '%';
   bar.classList.toggle('hot', m.over >= cfg.rise);
   $('meter-val').textContent = (m.over >= 0 ? '+' : '') + m.over.toFixed(0) + ' dB';
@@ -678,7 +679,7 @@ async function start() {
     if (cfg.mode === 'mic') {
       setStatus('Asking for the microphone…');
       await startMic();
-      setStatus('Listening. The first time the car passes starts lap 1.', 'live');
+      setStatus('Listening. Lap 1 starts when the car crosses the line at speed.', 'live');
     } else {
       await startCamera();
       if (!cfg.boxes[0] && !cfg.boxes[1]) { setStatus('Draw a box over each lane first.', 'error'); return; }
