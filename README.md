@@ -57,6 +57,7 @@ The detector runs in an AudioWorklet, with a main-thread fallback for older Safa
 ## Files
 
 - `index.html`: the app (UI, mic and camera handling)
+- `wiring.html`: wiring drawing for the planned magnet sensors (draft)
 - `detector.js`: mic pass detector
 - `lanes.js`: camera lane watcher
 - `cues.js`: lap sounds
