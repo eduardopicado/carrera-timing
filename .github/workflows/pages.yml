@@ -46,7 +46,7 @@ jobs:
       - name: Collect the site files
         run: |
           mkdir _site
-          cp index.html detector.js lanes.js cues.js manifest.webmanifest icon-180.png icon-512.png _site/
+          cp index.html wiring.html detector.js lanes.js cues.js manifest.webmanifest icon-180.png icon-512.png _site/
           cp -r samples _site/
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5

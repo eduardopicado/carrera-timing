@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pit Wall Sensor Wiring</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: a workbench sheet. An isometric drawing of the parts and wires,
+   numbered cards beside it, then the wire list, the view under the track,
+   parts and checks. Light paper by default, with a dark variant. */
+:root {
+  --paper: #f4ecdf;
+  --paper-2: #efe5d4;
+  --card: #fffaf1;
+  --ink: #2b2622;
+  --muted: #776b5e;
+  --line: #e2d4bf;
+  --grid: #e6d9c5;
+  --accent: #e2622a;
+  --edge: #2b2622;       /* outline around wires and parts */
+  --display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  /* wire colours: the same in both themes */
+  --w-power: #e0392b;
+  --w-ground: #34312e;
+  --w-lane1: #f29a17;
+  --w-lane2: #2f7fe0;
+  --w-usb: #5b5f66;
+  --c-board: #e2622a;
+  --c-bread: #9a8a73;
+  --c-sensor: #2e9e5b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #1c1a17; --paper-2: #221f1b; --card: #27231f; --ink: #f1e9dc; --muted: #ab9f90;
+    --line: #3b352e; --grid: #2c2823; --accent: #ff8a4c; --edge: #0d0c0b; --w-ground: #4a4642;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #1c1a17; --paper-2: #221f1b; --card: #27231f; --ink: #f1e9dc; --muted: #ab9f90;
+  --line: #3b352e; --grid: #2c2823; --accent: #ff8a4c; --edge: #0d0c0b; --w-ground: #4a4642;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; background: var(--paper); color: var(--ink); }
+body { font: 400 16px/1.5 var(--body); padding-block: env(safe-area-inset-top, 0px) env(safe-area-inset-bottom, 0px); }
+.wrap {
+  max-width: 1240px; margin: 0 auto; display: grid; gap: 28px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 18px 48px;
+}
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h1, h2 { font-family: var(--display); text-transform: uppercase; letter-spacing: .04em; line-height: 1.05; margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(34px, 6vw, 54px); }
+h1 span { color: var(--accent); }
+h2 { font-size: clamp(24px, 3.4vw, 32px); }
+p { margin: 0; }
+.lede { color: var(--muted); max-width: 62ch; }
+.top { display: grid; gap: 10px; }
+.back { font: 600 14px/1 var(--body); text-decoration: none; }
+.draft { display: inline-block; font: 600 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); border: 1.5px solid var(--accent); border-radius: 5px; padding: 4px 7px; vertical-align: 6px; margin-left: 10px; }
+
+/* Drawing + cards */
+.bench { display: grid; gap: 18px; grid-template-columns: 1fr; align-items: start; }
+@media (min-width: 980px) { .bench { grid-template-columns: minmax(0, 1fr) 330px; } .bench .sheet { position: sticky; top: 16px; } }
+.sheet {
+  position: relative; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; min-width: 0;
+  background: radial-gradient(circle at 30% 20%, var(--paper-2), var(--paper) 70%);
+}
+.sheet svg { display: block; width: 100%; height: auto; }
+.sheet figcaption { padding: 0 14px 10px; font: 500 12px/1.3 var(--mono); color: var(--muted); }
+.cards { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); min-width: 0; }
+@media (min-width: 980px) { .cards { grid-template-columns: 1fr; } }
+.card {
+  display: grid; grid-template-columns: 30px 1fr; gap: 4px 12px; align-items: start;
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 11px 13px;
+  cursor: pointer; text-align: left; font: inherit; color: inherit; width: 100%;
+}
+.card:hover, .card.on { border-color: var(--k); box-shadow: 0 0 0 1.5px var(--k); }
+.card .num { grid-row: span 2; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--k); color: #fff; font: 600 14px/1 var(--mono); border: 2px solid var(--edge); }
+.card b { font: 700 17px/1.1 var(--display); text-transform: uppercase; letter-spacing: .05em; }
+.card span { color: var(--muted); font-size: 14px; line-height: 1.4; }
+.card code { font: 600 13px var(--mono); color: var(--ink); }
+.hint { color: var(--muted); font-size: 14px; }
+
+/* Highlight one group of parts and wires */
+#scene .g { transition: opacity .2s; }
+#scene.focus .g { opacity: .18; }
+#scene.focus .g.on { opacity: 1; }
+
+/* Tables */
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
+table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 15px; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 12px/1.2 var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+tr:last-child td { border-bottom: 0; }
+td code { font: 600 14px var(--mono); }
+.sw { display: inline-block; width: 26px; height: 8px; border-radius: 4px; border: 1.5px solid var(--edge); vertical-align: 2px; margin-right: 8px; }
+
+/* Under the track */
+.under { display: grid; gap: 16px; }
+.under .sheet { background: var(--card); }
+.notes { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.note { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: grid; gap: 4px; }
+.note b { font: 700 17px/1.1 var(--display); text-transform: uppercase; letter-spacing: .05em; }
+.note span { color: var(--muted); font-size: 14px; }
+.note.warn { border-color: var(--w-power); }
+.note.warn b { color: var(--w-power); }
+
+section { display: grid; gap: 14px; }
+.checks { margin: 0; padding-left: 1.3em; display: grid; gap: 8px; max-width: 70ch; }
+.foot { color: var(--muted); font-size: 14px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="back" href="./">← Pit Wall</a>
+    <h1>Sensor <span>wiring</span><span class="draft">Draft</span></h1>
+    <p class="lede">Two magnet sensors, one per lane, wired to an ESP32. Drawn for the common 30-pin ESP32 DevKit with USB-C and the KY-035 sensor module. We'll check every pin against the real parts when they arrive.</p>
+  </header>
+
+  <section class="bench" aria-label="Wiring drawing">
+    <figure class="sheet" style="margin:0">
+      <svg id="scene" role="img" aria-labelledby="scene-title"><title id="scene-title">ESP32 board, mini breadboard and two KY-035 sensors joined by seven jumper wires</title></svg>
+      <figcaption>Not to scale · tap a card to highlight its wires</figcaption>
+    </figure>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <section aria-labelledby="h-wires">
+    <h2 id="h-wires">Wire by wire</h2>
+    <p class="hint">Seven jumper wires. Jumper packs come in mixed colours; use any, but keep one colour per job so it's easy to check. Label each sensor's wires with a strip of tape.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>Wire</th><th>From</th><th>To</th><th>Ends</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td><span class="sw" style="background:var(--w-power)"></span>Power</td><td>ESP32 <code>3V3</code></td><td>Breadboard, any hole in one row</td><td>female → male</td></tr>
+          <tr><td>2</td><td><span class="sw" style="background:var(--w-power)"></span>Power</td><td>Breadboard, same row</td><td>Lane 1 sensor <code>+</code> (middle pin)</td><td>male → female</td></tr>
+          <tr><td>3</td><td><span class="sw" style="background:var(--w-power)"></span>Power</td><td>Breadboard, same row</td><td>Lane 2 sensor <code>+</code> (middle pin)</td><td>male → female</td></tr>
+          <tr><td>4</td><td><span class="sw" style="background:var(--w-ground)"></span>Ground</td><td>ESP32 <code>GND</code> next to <code>3V3</code></td><td>Lane 1 sensor <code>−</code></td><td>female → female</td></tr>
+          <tr><td>5</td><td><span class="sw" style="background:var(--w-ground)"></span>Ground</td><td>ESP32 <code>GND</code> next to <code>VIN</code></td><td>Lane 2 sensor <code>−</code></td><td>female → female</td></tr>
+          <tr><td>6</td><td><span class="sw" style="background:var(--w-lane1)"></span>Lane 1 signal</td><td>ESP32 <code>D34</code></td><td>Lane 1 sensor <code>S</code></td><td>female → female</td></tr>
+          <tr><td>7</td><td><span class="sw" style="background:var(--w-lane2)"></span>Lane 2 signal</td><td>ESP32 <code>D35</code></td><td>Lane 2 sensor <code>S</code></td><td>female → female</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="under" aria-labelledby="h-under">
+    <h2 id="h-under">Under the track</h2>
+    <p class="hint">Looking along the track at the timing line, cut through a plain straight piece. Each kart's magnet rides over the solid strip in the middle of its lane: the slot and the two steel rails.</p>
+    <figure class="sheet" style="margin:0"><svg id="section" role="img" aria-labelledby="section-title"><title id="section-title">Cross-section of a straight track piece with a kart in each lane and a sensor in the pocket beside each lane's centre strip</title></svg>
+      <figcaption>Not to scale</figcaption></figure>
+    <div class="notes">
+      <div class="note"><b>Outer pocket</b><span>Put each sensor in the pocket on the outside of its lane's centre strip. It's as close to its own kart as the inside pocket, and further from the other lane.</span></div>
+      <div class="note"><b>Face the strip</b><span>Bend the legs so the bead stands on its edge with the printed side (<code>49E</code>) facing the strip. Beside a magnet the field points sideways. Also try it lying flat; keep whichever the live readout shows bigger.</span></div>
+      <div class="note"><b>Find the spot</b><span>Roll a kart over by hand and slide the sensor along the strip until the reading peaks, then fix it with Blu-Tack.</span></div>
+      <div class="note warn"><b>Cover the legs</b><span>The steel rails carry power to the cars. Wrap the sensor legs and pins in electrical tape so nothing bare can touch the rails or their tabs underneath.</span></div>
+      <div class="note"><b>Wires out the side</b><span>Run each sensor's three wires along the underside and out under the nearest edge. The far lane's wires go round the end of the piece to the board.</span></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-parts">
+    <h2 id="h-parts">Parts</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Part</th><th>Search for</th><th>How many</th></tr></thead>
+        <tbody>
+          <tr><td>Board</td><td>ESP32 WROOM-32 DevKit USB-C, pins soldered</td><td>1 (a spare is cheap)</td></tr>
+          <tr><td>Sensors</td><td>KY-035 analog Hall sensor module (bead printed <code>49E</code>)</td><td>3–4</td></tr>
+          <tr><td>Wires</td><td>Dupont jumper wire kit 30 cm with male–female and female–female (often sold as a 120-piece M-M / M-F / F-F pack)</td><td>3 male–female, 4 female–female</td></tr>
+          <tr><td>Breadboard</td><td>Mini breadboard 170 points</td><td>1</td></tr>
+          <tr><td>Power</td><td>USB-C cable, plus a power bank or phone charger</td><td>1</td></tr>
+          <tr><td>Fixing</td><td>Blu-Tack and electrical tape</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-checks">
+    <h2 id="h-checks">Before plugging in the USB cable</h2>
+    <ol class="checks">
+      <li>Every <code>+</code> goes to <code>3V3</code>. Never use <code>VIN</code> or <code>5V</code>: more than 3.3 V on an input pin can damage the ESP32.</li>
+      <li>Lane 1's <code>S</code> goes to <code>D34</code> and lane 2's to <code>D35</code>. These keep working with Wi-Fi on; many other analogue pins don't.</li>
+      <li>Check the labels printed on your boards, not just this drawing. On a 38-pin ESP32 the same names sit in different places, and sensor pin order varies between sellers.</li>
+      <li>Nothing bare near the track's rails: legs and pins taped.</li>
+    </ol>
+  </section>
+
+  <p class="foot">Draft drawn before the parts arrived. When you have them, send a photo and this page will be updated to match.</p>
+</div>
+
+<script>
+'use strict';
+/* ---------- isometric drawing ---------- */
+const S = 3.6;                       // pixels per millimetre
+const C = Math.cos(Math.PI / 6), N = 0.5;
+const P = (x, y, z) => [(x - y) * C * S, (x + y) * N * S - z * S];
+const bounds = [Infinity, Infinity, -Infinity, -Infinity];
+const grow = (p) => { bounds[0] = Math.min(bounds[0], p[0]); bounds[1] = Math.min(bounds[1], p[1]); bounds[2] = Math.max(bounds[2], p[0]); bounds[3] = Math.max(bounds[3], p[1]); };
+let noGrow = false;
+const pts = (list) => list.map((q) => { const p = P(...q); if (!noGrow) grow(p); return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' ');
+
+function shade(hex, k) {   // k > 0 lighter, k < 0 darker
+  const n = parseInt(hex.slice(1), 16);
+  const ch = [n >> 16, (n >> 8) & 255, n & 255].map((c) => Math.round(k > 0 ? c + (255 - c) * k : c * (1 + k)));
+  return '#' + ch.map((c) => c.toString(16).padStart(2, '0')).join('');
+}
+const EDGE = 'var(--edge)';
+function box(x, y, z, w, d, h, col, o = {}) {
+  const sw = o.sw == null ? 0.9 : o.sw, st = o.stroke || EDGE;
+  const top = o.top || shade(col, 0.12), right = o.right || shade(col, -0.18), left = o.left || shade(col, -0.36);
+  const a = `stroke="${st}" stroke-width="${sw}" stroke-linejoin="round"`;
+  return `<polygon points="${pts([[x + w, y, z], [x + w, y + d, z], [x + w, y + d, z + h], [x + w, y, z + h]])}" fill="${right}" ${a}/>` +
+    `<polygon points="${pts([[x, y + d, z], [x + w, y + d, z], [x + w, y + d, z + h], [x, y + d, z + h]])}" fill="${left}" ${a}/>` +
+    `<polygon points="${pts([[x, y, z + h], [x + w, y, z + h], [x + w, y + d, z + h], [x, y + d, z + h]])}" fill="${top}" ${a}/>`;
+}
+const flat = (x, y, z, w, d, fill, o = {}) => `<polygon points="${pts([[x, y, z], [x + w, y, z], [x + w, y + d, z], [x, y + d, z]])}" fill="${fill}" ${o.stroke ? `stroke="${o.stroke}" stroke-width="${o.sw || .6}"` : ''}/>`;
+// Text lying on a horizontal surface, reading along +x.
+function textTop(str, x, y, z, size, o = {}) {
+  const e = P(x, y, z); grow(e);
+  return `<text transform="matrix(${(C * S).toFixed(3)} ${(N * S).toFixed(3)} ${(-C * S).toFixed(3)} ${(N * S).toFixed(3)} ${e[0].toFixed(1)} ${e[1].toFixed(1)})" font-size="${size}" fill="${o.fill || 'var(--ink)'}" font-family="${o.font || 'var(--mono)'}" font-weight="${o.weight || 600}" text-anchor="${o.anchor || 'start'}" dominant-baseline="middle" letter-spacing="${o.ls || 0}">${str}</text>`;
+}
+// Text on a vertical face that faces +x, reading along -y.
+function textFaceX(str, x, y, z, size, o = {}) {
+  const e = P(x, y, z); grow(e);
+  return `<text transform="matrix(${(C * S).toFixed(3)} ${(-N * S).toFixed(3)} 0 ${S.toFixed(3)} ${e[0].toFixed(1)} ${e[1].toFixed(1)})" font-size="${size}" fill="${o.fill || '#ddd'}" font-family="var(--mono)" font-weight="600" text-anchor="middle" dominant-baseline="middle">${str}</text>`;
+}
+function bezier(p0, p1, p2, p3, n = 48) {
+  const out = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n, u = 1 - t;
+    out.push([0, 1, 2].map((k) => u * u * u * p0[k] + 3 * u * u * t * p1[k] + 3 * u * t * t * p2[k] + t * t * t * p3[k]));
+  }
+  return out;
+}
+function wire(points, colour, width = 3.4) {
+  const d = 'M' + points.map((q) => { const p = P(...q); grow(p); return p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' L');
+  return `<path d="${d}" fill="none" stroke="${EDGE}" stroke-width="${width + 2.2}" stroke-linecap="round" stroke-linejoin="round"/>` +
+    `<path d="${d}" fill="none" stroke="${colour}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round"/>` +
+    `<path d="${d}" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="${width * 0.3}" stroke-linecap="round" transform="translate(-0.6,-0.8)"/>`;
+}
+const g = (group, body) => `<g class="g" data-g="${group}">${body}</g>`;
+
+/* ---------- the parts ---------- */
+const PITCH = 2.54, PIN0 = 6.9;
+const LEFT = ['EN', 'VP', 'VN', 'D34', 'D35', 'D32', 'D33', 'D25', 'D26', 'D27', 'D14', 'D12', 'D13', 'GND', 'VIN'];
+const RIGHT = ['D23', 'D22', 'TX0', 'RX0', 'D21', 'D19', 'D18', 'D5', 'TX2', 'RX2', 'D4', 'D2', 'D15', 'GND', '3V3'];
+const pinY = (i) => PIN0 + i * PITCH;
+const LX = 1.45, RX = 27.05, HDR_TOP = 4.1, FEM = 12;   // header pin columns; female housing length
+const pinTop = (side, name) => { const list = side === 'L' ? LEFT : RIGHT; return [side === 'L' ? LX : RX, pinY(list.indexOf(name)), HDR_TOP + FEM]; };
+const USED = { L: { D34: 'lane1', D35: 'lane2', GND: 'ground' }, R: { GND: 'ground', '3V3': 'power' } };
+
+function esp32() {
+  let s = '';
+  s += box(0, 0, 0, 28.5, 52, 1.6, '#202226', { sw: 1 });                                // PCB
+  s += box(5, 1.5, 1.6, 18.5, 25.5, 0.9, '#2a2e35', { sw: .7 });                         // module board
+  s += flat(5.6, 2.1, 2.51, 17.3, 5.4, '#c99a2e');                                       // antenna trace area
+  for (let i = 0; i < 4; i++) s += flat(7 + i * 4, 3, 2.52, 2.2, 3.6, '#2a2e35');
+  s += box(6, 8.2, 2.5, 16.5, 18.3, 2.3, '#b9bcc2', { sw: .7, top: '#d3d6db' });          // metal can
+  s += textTop('ESP32', 14.25, 15.4, 4.85, 3.6, { anchor: 'middle', fill: '#5d6168', font: 'var(--body)', weight: 700 });
+  s += textTop('WROOM-32', 14.25, 19.6, 4.85, 1.9, { anchor: 'middle', fill: '#6d7178' });
+  s += box(9.5, 30, 1.6, 6, 6, 1.1, '#141518', { sw: .6 });                              // USB-serial chip
+  s += box(18, 31, 1.6, 4.5, 3, 1.2, '#141518', { sw: .6 });                             // regulator
+  s += box(2.8, 46.5, 1.6, 4.2, 3.6, 1.3, '#d6d8dc', { sw: .6 });                         // EN button
+  s += box(21.5, 46.5, 1.6, 4.2, 3.6, 1.3, '#d6d8dc', { sw: .6 });                        // BOOT button
+  s += box(10.3, 48.2, 1.6, 7.9, 5.6, 3.1, '#a9adb3', { sw: .7, top: '#c9ccd1' });        // USB-C socket
+  s += flat(22.2, 39.5, 1.61, 1.4, 1.4, '#3b8cff');                                       // blue LED
+  s += textTop('ESP32 DEVKIT', 14.25, 43.4, 1.62, 1.9, { anchor: 'middle', fill: '#c9c4bb' });
+  for (const [x0, side] of [[0.2, 'L'], [25.8, 'R']]) {
+    s += box(x0, PIN0 - 1.3, 1.6, 2.5, 14 * PITCH + 2.6, 2.5, '#16171a', { sw: .6 });     // header plastic
+    const list = side === 'L' ? LEFT : RIGHT;
+    list.forEach((name, i) => {
+      const x = side === 'L' ? LX : RX, y = pinY(i);
+      const used = USED[side][name];
+      if (!used) s += box(x - 0.32, y - 0.32, 4.1, 0.64, 0.64, 5.6, '#d7b04a', { sw: .3, top: '#f1d37a' });
+    });
+  }
+  return s;
+}
+function pinLabels() {
+  let s = '';
+  LEFT.forEach((name, i) => {
+    const used = USED.L[name];
+    s += textTop(name, -1.4, pinY(i), 0, used ? 1.9 : 1.55, { anchor: 'end', fill: used ? 'var(--ink)' : 'var(--muted)', weight: used ? 600 : 500 });
+  });
+  RIGHT.forEach((name, i) => {
+    const used = USED.R[name];
+    s += textTop(name, 29.9, pinY(i), 0, used ? 1.9 : 1.55, { fill: used ? 'var(--ink)' : 'var(--muted)', weight: used ? 600 : 500 });
+  });
+  return s;
+}
+// female housing standing on an ESP32 pin
+const femaleUp = (x, y) => box(x - 1.25, y - 1.25, HDR_TOP, 2.5, 2.5, FEM, '#26272b', { sw: .6, top: '#3a3c41' });
+
+// mini breadboard: 17 columns along y, two blocks of 5 rows along x
+const BB = { x: 44, y: 30, w: 35, d: 46, h: 8.5 };
+const bbHole = (k, j) => [BB.x + 4 + (k < 5 ? k : k + 1.7) * PITCH, BB.y + 2.6 + j * PITCH];
+function breadboard() {
+  let s = box(BB.x, BB.y, 0, BB.w, BB.d, BB.h, '#efe9dd', { sw: 1, top: '#f7f3ea', right: '#d9d1c2', left: '#c3b9a7' });
+  s += flat(BB.x + 4 + 4.5 * PITCH + 0.4, BB.y + 1, BB.h + 0.01, 2.6, BB.d - 2, '#ddd5c6');  // centre channel
+  for (let k = 0; k < 10; k++) for (let j = 0; j < 17; j++) {
+    const [hx, hy] = bbHole(k, j);
+    s += flat(hx - 0.55, hy - 0.55, BB.h + 0.02, 1.1, 1.1, '#6f675b');
+  }
+  return s;
+}
+const BB_ROW = 8;   // the row (column of 5 holes) that carries 3V3
+const maleIn = (k) => { const [x, y] = bbHole(k, BB_ROW); return box(x - 1.25, y - 1.25, BB.h, 2.5, 2.5, FEM, '#26272b', { sw: .6, top: '#3a3c41' }); };
+const maleTop = (k) => { const [x, y] = bbHole(k, BB_ROW); return [x, y, BB.h + FEM]; };
+
+// KY-035 module lying flat: header on the -x edge (pins pointing -x), bead on legs to +x
+const SENS = [{ x: 104, y: 4, lane: 1 }, { x: 104, y: 46, lane: 2 }];
+const SPIN = (s, k) => [s.x - 6, s.y + 7.5 + (k - 1) * PITCH, 2.85];   // k: 0 = S, 1 = +, 2 = −
+function sensorBoard(s) {
+  let o = box(s.x, s.y, 0, 18.5, 15, 1.6, '#1f2124', { sw: .9 });
+  o += box(s.x, s.y + 3.2, 1.6, 2.5, 8.6, 2.5, '#16171a', { sw: .5 });                   // header plastic
+  ['S', '+', '−'].forEach((t, k) => { o += textTop(t, s.x + 4.4, s.y + 7.5 + (k - 1) * PITCH, 1.62, 2, { fill: '#e8e2d6', anchor: 'middle' }); });
+  o += textTop('keyes', s.x + 11, s.y + 3.2, 1.62, 2.2, { fill: '#e8e2d6', font: 'var(--body)', anchor: 'middle' });
+  for (let k = 0; k < 3; k++) {                                                          // legs
+    const y = s.y + 6.2 + k * 1.3;
+    o += box(s.x + 18.5, y - 0.2, 1.5, 8, 0.4, 0.4, '#c9ccd1', { sw: .2 });
+  }
+  o += box(s.x + 26.5, s.y + 5.4, 0.2, 1.6, 4.4, 4.2, '#18191b', { sw: .6, right: '#232428' });  // the bead, printed face to +x
+  o += textFaceX('49E', s.x + 28.1, s.y + 7.6, 2.3, 1.3, { fill: '#cfcac0' });
+  o += textTop(`LANE ${s.lane}`, s.x + 9, s.y + 19.5, 0, 3.4, { anchor: 'middle', font: 'var(--display)', weight: 700, fill: s.lane === 1 ? 'var(--w-lane1)' : 'var(--w-lane2)' });
+  return o;
+}
+function sensorPins(s) {
+  let o = '';
+  const grp = [`lane${s.lane}`, 'power', 'ground'];
+  for (let k = 0; k < 3; k++) {
+    const [px, py] = SPIN(s, k);
+    o += g('sensors ' + grp[k], box(px - FEM, py - 1.25, 1.6, FEM, 2.5, 2.5, '#26272b', { sw: .6, top: '#3a3c41' }));   // female housing, lying down
+  }
+  return o;
+}
+const sEnd = (s, k) => { const [px, py, pz] = SPIN(s, k); return [px - FEM, py, pz]; };
+
+function floorGrid() {
+  let o = ''; noGrow = true;
+  for (let x = -40; x <= 150; x += 10) o += `<polyline points="${pts([[x, -24, 0], [x, 112, 0]])}" stroke="var(--grid)" stroke-width="1" fill="none"/>`;
+  for (let y = -24; y <= 112; y += 10) o += `<polyline points="${pts([[-40, y, 0], [150, y, 0]])}" stroke="var(--grid)" stroke-width="1" fill="none"/>`;
+  noGrow = false;
+  return o;
+}
+function shadow(x, y, w, d) { return flat(x + 1.5, y + 1.5, 0, w, d, 'var(--ink)', {}).replace('/>', ' fill-opacity=".07"/>'); }
+
+/* ---------- wires ---------- */
+const W = [];
+const up = (p, h) => [p[0], p[1], p[2] + h];
+// 3V3 -> breadboard -> each sensor's +
+W.push(['power', bezier(pinTop('R', '3V3'), up(pinTop('R', '3V3'), 16), up(maleTop(0), 18), maleTop(0)), 'var(--w-power)']);
+W.push(['power', bezier(maleTop(2), up(maleTop(2), 20), [92, SPIN(SENS[0], 1)[1], 8], sEnd(SENS[0], 1)), 'var(--w-power)']);
+W.push(['power', bezier(maleTop(4), up(maleTop(4), 14), [92, SPIN(SENS[1], 1)[1], 8], sEnd(SENS[1], 1)), 'var(--w-power)']);
+// GND pins -> each sensor's −
+W.push(['ground', bezier(pinTop('R', 'GND'), up(pinTop('R', 'GND'), 24), [84, SPIN(SENS[0], 2)[1] + 6, 30], sEnd(SENS[0], 2)), 'var(--w-ground)']);
+W.push(['ground', bezier(pinTop('L', 'GND'), up(pinTop('L', 'GND'), 40), [80, SPIN(SENS[1], 2)[1] + 8, 34], sEnd(SENS[1], 2)), 'var(--w-ground)']);
+// D34 / D35 -> each sensor's S
+W.push(['lane1', bezier(pinTop('L', 'D34'), up(pinTop('L', 'D34'), 34), [78, SPIN(SENS[0], 0)[1] - 4, 26], sEnd(SENS[0], 0)), 'var(--w-lane1)']);
+W.push(['lane2', bezier(pinTop('L', 'D35'), up(pinTop('L', 'D35'), 46), [70, SPIN(SENS[1], 0)[1] - 12, 40], sEnd(SENS[1], 0)), 'var(--w-lane2)']);
+
+/* ---------- callout numbers ---------- */
+const CARDS = [
+  { n: 1, g: 'board', k: 'var(--c-board)', t: 'ESP32 DevKit', d: 'The board. Reads both sensors thousands of times a second and sends each lap to your phone over Wi-Fi.', at: [1, 2, 1.6], off: [-197, -150] },
+  { n: 2, g: 'lane1', k: 'var(--w-lane1)', t: 'D34 · lane 1', d: 'Wire <code>6</code> to <code>S</code> on the lane 1 sensor.', at: pinTop('L', 'D34'), off: [-120, -40] },
+  { n: 3, g: 'lane2', k: 'var(--w-lane2)', t: 'D35 · lane 2', d: 'Wire <code>7</code> to <code>S</code> on the lane 2 sensor.', at: pinTop('L', 'D35'), off: [-120, 14] },
+  { n: 4, g: 'power', k: 'var(--w-power)', t: '3V3 · power', d: 'Wires <code>1–3</code>: board to breadboard, then on to <code>+</code> on each sensor. Never <code>VIN</code> or <code>5V</code>.', at: pinTop('R', '3V3'), off: [-60, 90] },
+  { n: 5, g: 'ground', k: 'var(--w-ground)', t: 'GND · ground', d: 'Wires <code>4–5</code>: one from each <code>GND</code> pin to <code>−</code> on a sensor.', at: pinTop('L', 'GND'), off: [-140, 40] },
+  { n: 6, g: 'power', k: 'var(--c-bread)', t: 'Mini breadboard', d: 'Shares 3V3 between the sensors. Each row of 5 holes is joined inside: plug the three red wires into one row.', at: [BB.x + 18, BB.y + 40, BB.h], off: [40, 70] },
+  { n: 7, g: 'sensors', k: 'var(--c-sensor)', t: 'KY-035 sensors', d: 'Pins <code>S</code>, <code>+</code>, <code>−</code> as printed. The bead goes under the track, printed face toward the magnet.', at: [SENS[1].x + 27, SENS[1].y + 7.6, 4], off: [40, 60] },
+  { n: 8, g: 'usb', k: 'var(--w-usb)', t: 'USB-C', d: 'To a power bank or phone charger. A computer uses the same cable to load the code, once.', at: [14.25, 64, 3], off: [-90, 50] },
+];
+
+function draw() {
+  bounds[0] = bounds[1] = Infinity; bounds[2] = bounds[3] = -Infinity;
+  let o = g('all', floorGrid());
+  o += shadow(0, 0, 28.5, 52) + shadow(BB.x, BB.y, BB.w, BB.d) + SENS.map((s) => shadow(s.x, s.y, 28, 15)).join('');
+  // USB-C cable, under everything else
+  const usb = bezier([14.25, 60, 3.2], [14.25, 76, 3.2], [2, 88, 0.8], [-22, 104, 0.8]);
+  o += g('usb', box(10.6, 53.6, 1.7, 7.3, 7, 2.8, '#c4c7cc', { sw: .7, top: '#dfe1e4' }) + wire(usb, 'var(--w-usb)', 5));
+  o += g('board all', esp32());
+  o += g('labels', pinLabels());
+  o += g('power breadboard', breadboard());
+  o += SENS.map((s) => g(`sensors lane${s.lane} power ground`, sensorBoard(s))).join('');
+  // wires, then the connector housings that sit on their ends
+  const order = ['ground', 'lane2', 'lane1', 'power'];
+  for (const grp of order) for (const [wg, ptsW, col] of W) if (wg === grp) o += g(wg, wire(ptsW, col));
+  o += g('lane1', femaleUp(LX, pinY(LEFT.indexOf('D34')))) + g('lane2', femaleUp(LX, pinY(LEFT.indexOf('D35')))) + g('ground', femaleUp(LX, pinY(LEFT.indexOf('GND'))));
+  o += g('ground', femaleUp(RX, pinY(RIGHT.indexOf('GND')))) + g('power', femaleUp(RX, pinY(RIGHT.indexOf('3V3'))));
+  o += g('power', maleIn(0) + maleIn(2) + maleIn(4));
+  o += SENS.map((s) => sensorPins(s)).join('');
+  // numbered callouts
+  for (const c of CARDS) {
+    const a = P(...c.at); const b = [a[0] + c.off[0], a[1] + c.off[1]]; grow([b[0] - 16, b[1] - 16]); grow([b[0] + 16, b[1] + 16]);
+    o += g(c.g, `<line x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" stroke="${c.k}" stroke-width="1.8" stroke-dasharray="2 4" stroke-linecap="round"/>` +
+      `<circle cx="${a[0].toFixed(1)}" cy="${a[1].toFixed(1)}" r="3.4" fill="${c.k}" stroke="${EDGE}" stroke-width="1"/>` +
+      `<circle cx="${b[0].toFixed(1)}" cy="${b[1].toFixed(1)}" r="13" fill="${c.k}" stroke="${EDGE}" stroke-width="1.8"/>` +
+      `<text x="${b[0].toFixed(1)}" y="${(b[1] + 0.5).toFixed(1)}" text-anchor="middle" dominant-baseline="middle" font-family="var(--mono)" font-weight="600" font-size="14" fill="#fff">${c.n}</text>`);
+  }
+  const pad = 14, vb = [bounds[0] - pad, bounds[1] - pad, bounds[2] - bounds[0] + 2 * pad, bounds[3] - bounds[1] + 2 * pad + 18];
+  const svg = document.getElementById('scene');
+  svg.setAttribute('viewBox', vb.map((v) => v.toFixed(0)).join(' '));
+  svg.insertAdjacentHTML('beforeend', o);
+}
+
+/* ---------- cards and highlighting ---------- */
+function cards() {
+  const box = document.getElementById('cards');
+  box.innerHTML = CARDS.map((c) => `<button class="card" type="button" data-g="${c.g}" style="--k:${c.k}"><span class="num">${c.n}</span><b>${c.t}</b><span>${c.d}</span></button>`).join('');
+  const svg = document.getElementById('scene');
+  let pinned = null;
+  const show = (grp) => {
+    svg.classList.toggle('focus', !!grp);
+    svg.querySelectorAll('.g').forEach((el) => el.classList.toggle('on', !!grp && el.dataset.g.split(' ').some((x) => x === grp || x === 'labels' || x === 'all')));
+    box.querySelectorAll('.card').forEach((el) => el.classList.toggle('on', el.dataset.g === grp && el === pinned));
+  };
+  box.addEventListener('click', (e) => {
+    const c = e.target.closest('.card'); if (!c) return;
+    pinned = pinned === c ? null : c; show(pinned ? c.dataset.g : null);
+  });
+  box.addEventListener('mouseover', (e) => { const c = e.target.closest('.card'); if (c && !pinned) show(c.dataset.g); });
+  box.addEventListener('mouseleave', () => { if (!pinned) show(null); });
+}
+
+/* ---------- cross-section under the track ---------- */
+function section() {
+  const lane = (cx, label, colour, sensorSide) => {
+    const strip = `<rect x="${cx - 32}" y="182" width="64" height="58" fill="#3a3a3d" stroke="#1d1d1f" stroke-width="2"/>`;
+    const rails = `<rect x="${cx - 26}" y="166" width="12" height="9" fill="#c9ccd1" stroke="#1d1d1f" stroke-width="1.5"/><rect x="${cx + 14}" y="166" width="12" height="9" fill="#c9ccd1" stroke="#1d1d1f" stroke-width="1.5"/>`;
+    const slot = `<rect x="${cx - 6}" y="166" width="12" height="40" fill="#141416"/>`;
+    const kart = `<g><rect x="${cx - 70}" y="96" width="140" height="44" rx="18" fill="${colour}" stroke="#1d1d1f" stroke-width="2.5"/>` +
+      `<rect x="${cx - 92}" y="120" width="26" height="40" rx="7" fill="#232326" stroke="#1d1d1f" stroke-width="2"/><rect x="${cx + 66}" y="120" width="26" height="40" rx="7" fill="#232326" stroke="#1d1d1f" stroke-width="2"/>` +
+      `<rect x="${cx - 20}" y="140" width="40" height="16" rx="3" fill="#8d9096" stroke="#1d1d1f" stroke-width="2"/><text x="${cx}" y="152" text-anchor="middle" font-size="12" font-family="var(--mono)" font-weight="600" fill="#1d1d1f">N S</text>` +
+      `<text x="${cx}" y="124" text-anchor="middle" font-size="22" font-family="var(--display)" font-weight="700" fill="#fff">${label}</text></g>`;
+    const sx = cx + sensorSide * 50;    // the bead, beside the strip, standing on its edge
+    const field = [0, 1, 2].map((i) => `<path d="M ${cx + sensorSide * (10 + i * 6)} 156 Q ${cx + sensorSide * (34 + i * 16)} ${190 + i * 6} ${sx + sensorSide * (2 + i * 6)} ${214 + i * 4}" fill="none" stroke="${colour}" stroke-width="2" stroke-dasharray="4 5" opacity=".75"/>`).join('');
+    const bead = `<rect x="${sx - 5}" y="196" width="10" height="34" rx="2" fill="#18191b" stroke="#000" stroke-width="1.5"/>` +
+      `<rect x="${sensorSide < 0 ? sx + 3 : sx - 5}" y="198" width="2" height="30" fill="#cfcac0"/>`;
+    const board = `<rect x="${sensorSide < 0 ? sx - 74 : sx + 20}" y="288" width="54" height="9" rx="2" fill="#1f2124" stroke="#000" stroke-width="1.5"/>` +
+      `<path d="M ${sx} 230 L ${sx} 292 L ${sensorSide < 0 ? sx - 20 : sx + 20} 292" fill="none" stroke="#c9ccd1" stroke-width="3"/>`;
+    return { svg: field + strip + rails + slot + kart + bead + board, sx };
+  };
+  const L1 = lane(250, 'LANE 1', 'var(--w-lane1)', -1), L2 = lane(590, 'LANE 2', 'var(--w-lane2)', 1);
+  let o = '';
+  o += `<rect x="0" y="0" width="900" height="400" fill="transparent"/>`;
+  o += `<line x1="20" y1="300" x2="880" y2="300" stroke="var(--muted)" stroke-width="2"/>`;
+  // track piece: top plate, edges, ribs
+  o += `<rect x="110" y="160" width="620" height="22" fill="#2f2f32" stroke="#1d1d1f" stroke-width="2"/>`;
+  o += `<rect x="110" y="182" width="14" height="118" fill="#2f2f32" stroke="#1d1d1f" stroke-width="2"/><rect x="716" y="182" width="14" height="118" fill="#2f2f32" stroke="#1d1d1f" stroke-width="2"/>`;
+  o += `<rect x="413" y="182" width="14" height="76" fill="#2f2f32" stroke="#1d1d1f" stroke-width="2"/>`;
+  o += L1.svg + L2.svg;
+  // wires out under the edge to the board
+  o += `<path d="M 128 293 L 60 293" fill="none" stroke="var(--w-lane1)" stroke-width="4" stroke-linecap="round"/>`;
+  o += `<path d="M 712 293 L 760 293" fill="none" stroke="var(--w-lane2)" stroke-width="4" stroke-linecap="round"/><path d="M 760 293 L 840 293" fill="none" stroke="var(--w-lane2)" stroke-width="4" stroke-dasharray="6 6"/>`;
+  o += `<text x="845" y="276" text-anchor="end" font-size="15" font-family="var(--body)" fill="var(--muted)">to the board, round the track</text>`;
+  o += `<rect x="14" y="270" width="54" height="26" rx="4" fill="#202226" stroke="#000" stroke-width="2"/><text x="41" y="287" text-anchor="middle" font-size="12" font-family="var(--mono)" font-weight="600" fill="#ddd">ESP32</text>`;
+  // labels
+  const lab = (x, y, text, anchor = 'start') => `<text x="${x}" y="${y}" text-anchor="${anchor}" font-size="17" font-family="var(--body)" font-weight="600" fill="var(--ink)">${text}</text>`;
+  const lead = (x1, y1, x2, y2) => `<path d="M ${x1} ${y1} L ${x2} ${y2}" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="2 4" fill="none"/><circle cx="${x1}" cy="${y1}" r="3" fill="var(--muted)"/>`;
+  o += lead(250, 228, 330, 340) + lab(336, 346, 'Solid strip: slot and steel rails');
+  o += lead(L1.sx, 214, 120, 352) + lab(20, 372, 'Sensor bead on its edge, printed face to the strip');
+  o += lead(590, 148, 700, 60) + lab(706, 58, 'Magnet under the kart');
+  o += lead(L2.sx + 40, 292, 700, 352) + lab(690, 372, 'Module board on the floor', 'end');
+  o += lab(450, 40, 'Pockets under the track are hollow', 'middle');
+  o += lead(450, 230, 450, 50);
+  o += lead(130, 176, 80, 110) + lab(20, 100, 'Track top');
+  const svg = document.getElementById('section');
+  svg.setAttribute('viewBox', '0 20 900 368');
+  svg.insertAdjacentHTML('beforeend', o);
+}
+
+draw();
+cards();
+section();
+</script>
+</body>
+</html>
